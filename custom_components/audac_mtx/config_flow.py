@@ -9,7 +9,15 @@ from homeassistant import config_entries
 from homeassistant.const import CONF_HOST, CONF_PORT
 from homeassistant.data_entry_flow import FlowResult
 
-from .const import DOMAIN, DEFAULT_PORT, INPUT_NAMES, MAX_ZONES
+from .const import (
+    DOMAIN,
+    DEFAULT_PORT,
+    CONF_MODEL,
+    MODEL_MTX48,
+    MODEL_MTX88,
+    MODEL_ZONES,
+    INPUT_NAMES,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -17,14 +25,16 @@ DATA_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_HOST): str,
         vol.Optional(CONF_PORT, default=DEFAULT_PORT): int,
-        vol.Optional("zones", default=8): vol.All(int, vol.Range(min=1, max=8)),
+        vol.Required(CONF_MODEL, default=MODEL_MTX88): vol.In(
+            {MODEL_MTX48: "MTX48 (4 Zonen)", MODEL_MTX88: "MTX88 (8 Zonen)"}
+        ),
         vol.Optional("name", default="Audac MTX"): str,
     }
 )
 
 
 class AudacMTXConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
-    VERSION = 1
+    VERSION = 2
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
@@ -33,6 +43,9 @@ class AudacMTXConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         if user_input is not None:
             from .mtx_client import MTXClient
+
+            model = user_input.get(CONF_MODEL, MODEL_MTX88)
+            user_input["zones"] = MODEL_ZONES[model]
 
             client = MTXClient(
                 host=user_input[CONF_HOST],
@@ -76,7 +89,8 @@ class AudacMTXOptionsFlow(config_entries.OptionsFlow):
         if user_input is not None:
             return self.async_create_entry(title="", data=user_input)
 
-        zones_count = self._config_entry.data.get("zones", 8)
+        model = self._config_entry.data.get(CONF_MODEL, MODEL_MTX88)
+        zones_count = MODEL_ZONES.get(model, 8)
         current_options = self._config_entry.options
 
         schema_dict = {}

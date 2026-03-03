@@ -9,7 +9,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.const import Platform
 
-from .const import DOMAIN, CARD_URL_PATH, CARD_FILENAME
+from .const import DOMAIN, CARD_URL_PATH, CARD_FILENAME, CONF_MODEL, MODEL_MTX48, MODEL_MTX88
 from .coordinator import AudacMTXCoordinator
 
 _LOGGER = logging.getLogger(__name__)
@@ -19,6 +19,17 @@ PLATFORMS = [Platform.MEDIA_PLAYER]
 
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     hass.data.setdefault(DOMAIN, {"loaded": False})
+    return True
+
+
+async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
+    if config_entry.version < 2:
+        _LOGGER.info("Migrating Audac MTX config entry from version %s to 2", config_entry.version)
+        new_data = {**config_entry.data}
+        if CONF_MODEL not in new_data:
+            zones = new_data.get("zones", 8)
+            new_data[CONF_MODEL] = MODEL_MTX48 if zones <= 4 else MODEL_MTX88
+        hass.config_entries.async_update_entry(config_entry, data=new_data, version=2)
     return True
 
 

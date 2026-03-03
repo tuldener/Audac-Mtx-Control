@@ -7,7 +7,7 @@
         "data": {
           "host": "Host / IP Address",
           "port": "Port",
-          "zones": "Number of Zones",
+          "model": "Model",
           "name": "Device Name"
         }
       }

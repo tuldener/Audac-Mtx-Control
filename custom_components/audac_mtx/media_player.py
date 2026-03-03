@@ -14,7 +14,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN, INPUT_NAMES, BASS_TREBLE_MAP
+from .const import DOMAIN, INPUT_NAMES, BASS_TREBLE_MAP, CONF_MODEL, MODEL_MTX88, MODEL_ZONES, MODEL_NAMES
 from .coordinator import AudacMTXCoordinator
 
 _LOGGER = logging.getLogger(__name__)
@@ -38,7 +38,8 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     coordinator: AudacMTXCoordinator = hass.data[DOMAIN][entry.entry_id]
-    zones_count = entry.data.get("zones", 8)
+    model = entry.data.get(CONF_MODEL, MODEL_MTX88)
+    zones_count = entry.data.get("zones", MODEL_ZONES.get(model, 8))
 
     entities = [
         AudacMTXZone(coordinator, zone, entry)
@@ -67,11 +68,12 @@ class AudacMTXZone(CoordinatorEntity[AudacMTXCoordinator], MediaPlayerEntity):
         self._entry = entry
         self._attr_unique_id = f"{entry.entry_id}_zone_{zone}"
         self._attr_name = _get_zone_name(entry, zone)
+        model = entry.data.get(CONF_MODEL, MODEL_MTX88)
         self._attr_device_info = {
             "identifiers": {(DOMAIN, entry.entry_id)},
             "name": entry.data.get("name", "Audac MTX"),
             "manufacturer": "Audac",
-            "model": "MTX",
+            "model": MODEL_NAMES.get(model, "MTX"),
         }
         self._source_names = _get_source_names(entry)
         self._attr_source_list = list(self._source_names.values())

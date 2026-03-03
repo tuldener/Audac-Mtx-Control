@@ -7,6 +7,20 @@ DEFAULT_SOURCE = "web"
 CARD_FILENAME = "audac-mtx-card.js"
 CARD_URL_PATH = f"/audac_mtx/{CARD_FILENAME}"
 
+CONF_MODEL = "model"
+MODEL_MTX48 = "mtx48"
+MODEL_MTX88 = "mtx88"
+
+MODEL_ZONES = {
+    MODEL_MTX48: 4,
+    MODEL_MTX88: 8,
+}
+
+MODEL_NAMES = {
+    MODEL_MTX48: "MTX48",
+    MODEL_MTX88: "MTX88",
+}
+
 INPUT_NAMES = {
     0: "Off",
     1: "Mic 1",
@@ -37,6 +51,5 @@ BASS_TREBLE_MAP = {
     14: 14,
 }
 
-MAX_ZONES = 8
 VOLUME_MIN = 0
 VOLUME_MAX = 70

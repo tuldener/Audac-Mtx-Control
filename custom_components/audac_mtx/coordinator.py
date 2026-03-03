@@ -9,7 +9,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .const import DOMAIN
+from .const import DOMAIN, CONF_MODEL, MODEL_MTX88, MODEL_ZONES
 from .mtx_client import MTXClient
 
 _LOGGER = logging.getLogger(__name__)
@@ -29,7 +29,8 @@ class AudacMTXCoordinator(DataUpdateCoordinator[dict[int, dict[str, Any]]]):
             host=entry.data["host"],
             port=entry.data.get("port", 5001),
         )
-        self._zones_count = entry.data.get("zones", 8)
+        model = entry.data.get(CONF_MODEL, MODEL_MTX88)
+        self._zones_count = entry.data.get("zones", MODEL_ZONES.get(model, 8))
 
     async def _async_update_data(self) -> dict[int, dict[str, Any]]:
         try:

@@ -1,4 +1,13 @@
-"""TCP client for communicating with the Audac MTX device."""
+"""TCP client for communicating with the Audac MTX device.
+
+Protocol reference (MTX48/MTX88):
+  Command:  #|X001|source|CMD|arg|U|\\r\\n
+  Answer:   #|source|X001|CMD|data|checksum|\\r\\n
+  Update:   #|ALL|X001|CMD|data|checksum|\\r\\n  (broadcast after SET)
+
+  GET responses strip the 'G' prefix: GZI01 → ZI01, GVALL → VALL
+  SET responses echo the command with '+' as data.
+"""
 from __future__ import annotations
 
 import asyncio
@@ -11,7 +20,7 @@ _LOGGER = logging.getLogger(__name__)
 
 MAX_RETRIES = 1
 RECONNECT_DELAY = 1.0
-INTER_COMMAND_DELAY = 0.12
+INTER_COMMAND_DELAY = 0.1
 
 
 class MTXClient:
@@ -57,7 +66,6 @@ class MTXClient:
                 pass
             self._writer = None
             self._reader = None
-            _LOGGER.debug("Disconnected from MTX")
 
     async def _ensure_connected(self) -> None:
         if self._writer is None:
@@ -71,7 +79,7 @@ class MTXClient:
 
     async def _read_response(self, timeout: float = 1.5) -> str:
         lines_read = 0
-        while lines_read < 10:
+        while lines_read < 15:
             try:
                 line_bytes = await asyncio.wait_for(
                     self._reader.readline(),
@@ -85,8 +93,15 @@ class MTXClient:
                         break
                     continue
 
-                if line.startswith("#|"):
-                    return line
+                if not line.startswith("#|"):
+                    continue
+
+                parts = line.split("|")
+                if len(parts) >= 4 and parts[1].strip() == "ALL":
+                    _LOGGER.debug("Skipping broadcast update: %s", line[:80])
+                    continue
+
+                return line
 
             except asyncio.TimeoutError:
                 break
@@ -121,7 +136,7 @@ class MTXClient:
                     return response
 
                 except (asyncio.TimeoutError, OSError, ConnectionError) as err:
-                    _LOGGER.warning("MTX comm error cmd=%s attempt=%d: %s", command, attempt, err)
+                    _LOGGER.warning("MTX error cmd=%s attempt=%d: %s", command, attempt, err)
                     await self.disconnect()
                     self._consecutive_failures += 1
                     if attempt < MAX_RETRIES:
@@ -131,55 +146,34 @@ class MTXClient:
         return ""
 
     @staticmethod
-    def _parse_response(response: str) -> str | None:
+    def _parse_response(response: str) -> tuple[str, str]:
         if not response:
-            return None
+            return ("", "")
         parts = response.split("|")
         if len(parts) >= 5:
-            return parts[4]
-        return None
+            cmd = parts[3].strip()
+            data = parts[4].strip()
+            return (cmd, data)
+        return ("", "")
 
     @staticmethod
     def _is_success(response: str) -> bool:
         if not response:
             return False
-        parts = response.split("|")
-        return len(parts) >= 4 and "+" in parts[3]
-
-    @staticmethod
-    def _extract_zone_from_response(response: str) -> int | None:
-        parts = response.split("|")
-        if len(parts) < 4:
-            return None
-        cmd = parts[3].lstrip("+")
-        digits = ""
-        for ch in reversed(cmd):
-            if ch.isdigit():
-                digits = ch + digits
-            else:
-                break
-        if digits:
-            return int(digits)
-        return None
+        _, data = MTXClient._parse_response(response)
+        return data == "+"
 
     async def get_zone_info(self, zone: int) -> dict[str, Any]:
-        command = f"GZI0{zone}"
-        resp = await self._send_and_receive(command)
+        resp = await self._send_and_receive(f"GZI0{zone}")
+        cmd, data = self._parse_response(resp)
 
-        if not resp:
+        if not data or data == "+":
+            _LOGGER.debug("No data for zone %d: cmd=%s data=%s", zone, cmd, data)
             return {}
 
-        resp_zone = self._extract_zone_from_response(resp)
-        if resp_zone is not None and resp_zone != zone:
-            _LOGGER.warning(
-                "Zone mismatch: asked zone %d, got zone %d response: %s",
-                zone, resp_zone, resp[:80],
-            )
-            return {}
-
-        data = self._parse_response(resp)
-        if data is None:
-            _LOGGER.debug("No parseable data for zone %d: %s", zone, resp[:80])
+        expected_cmd = f"ZI0{zone}"
+        if cmd and cmd != expected_cmd:
+            _LOGGER.warning("Zone %d: expected cmd %s, got %s", zone, expected_cmd, cmd)
             return {}
 
         values = data.split("^")
@@ -194,41 +188,97 @@ class MTXClient:
             bass_raw = int(values[3])
             treble_raw = int(values[4])
         except (ValueError, IndexError) as err:
-            _LOGGER.warning("Zone %d parse error '%s': %s", zone, data, err)
+            _LOGGER.warning("Zone %d parse error: %s", zone, err)
             return {}
 
-        mute = mute_raw != 0
-
-        result = {
+        return {
             "volume": volume_raw,
             "volume_db": -volume_raw,
             "routing": routing,
             "source_name": INPUT_NAMES.get(routing, f"Input {routing}"),
-            "mute": mute,
+            "mute": mute_raw != 0,
             "bass": bass_raw,
             "bass_db": BASS_TREBLE_MAP.get(bass_raw, 0),
             "treble": treble_raw,
             "treble_db": BASS_TREBLE_MAP.get(treble_raw, 0),
         }
 
-        if len(values) > 5:
-            result["remote_inputs"] = values[5:]
-
-        return result
-
     async def get_all_zones(self, zones_count: int = 8) -> dict[int, dict[str, Any]]:
-        zones = {}
+        zones: dict[int, dict[str, Any]] = {}
+
+        volumes = await self._get_bulk("GVALL", "VALL", zones_count)
+        await asyncio.sleep(INTER_COMMAND_DELAY)
+        routings = await self._get_bulk("GRALL", "RALL", zones_count)
+        await asyncio.sleep(INTER_COMMAND_DELAY)
+        mutes = await self._get_bulk("GMALL", "MALL", zones_count)
+        await asyncio.sleep(INTER_COMMAND_DELAY)
+
+        for zone in range(1, zones_count + 1):
+            zones[zone] = {
+                "volume": volumes.get(zone, 70),
+                "volume_db": -volumes.get(zone, 70),
+                "routing": routings.get(zone, 0),
+                "source_name": INPUT_NAMES.get(routings.get(zone, 0), "Off"),
+                "mute": mutes.get(zone, 0) != 0,
+                "bass": 7,
+                "bass_db": 0,
+                "treble": 7,
+                "treble_db": 0,
+            }
+
         for zone in range(1, zones_count + 1):
             try:
-                info = await self.get_zone_info(zone)
-                if info:
-                    zones[zone] = info
+                bass = await self._get_single(f"GB0{zone}", f"B0{zone}")
+                if bass is not None:
+                    zones[zone]["bass"] = bass
+                    zones[zone]["bass_db"] = BASS_TREBLE_MAP.get(bass, 0)
+                await asyncio.sleep(INTER_COMMAND_DELAY)
+
+                treble = await self._get_single(f"GT0{zone}", f"T0{zone}")
+                if treble is not None:
+                    zones[zone]["treble"] = treble
+                    zones[zone]["treble_db"] = BASS_TREBLE_MAP.get(treble, 0)
+                await asyncio.sleep(INTER_COMMAND_DELAY)
             except ConnectionError:
                 raise
             except Exception as err:
-                _LOGGER.warning("Failed to get info for zone %d: %s", zone, err)
-            await asyncio.sleep(INTER_COMMAND_DELAY)
+                _LOGGER.warning("Bass/treble error zone %d: %s", zone, err)
+
         return zones
+
+    async def _get_bulk(self, command: str, expected_cmd: str, zones_count: int) -> dict[int, int]:
+        resp = await self._send_and_receive(command)
+        cmd, data = self._parse_response(resp)
+
+        if not data:
+            _LOGGER.warning("No response for %s", command)
+            return {}
+
+        values = data.split("^")
+        result = {}
+        for i, val in enumerate(values):
+            zone = i + 1
+            if zone > zones_count:
+                break
+            try:
+                result[zone] = int(val)
+            except ValueError:
+                _LOGGER.warning("%s: invalid value '%s' for zone %d", command, val, zone)
+
+        return result
+
+    async def _get_single(self, command: str, expected_cmd: str) -> int | None:
+        resp = await self._send_and_receive(command)
+        cmd, data = self._parse_response(resp)
+
+        if not data or data == "+":
+            return None
+
+        try:
+            return int(data)
+        except ValueError:
+            _LOGGER.debug("Could not parse %s response: %s", command, data)
+            return None
 
     async def set_volume(self, zone: int, volume: int) -> bool:
         volume = max(0, min(70, volume))
@@ -267,5 +317,5 @@ class MTXClient:
 
     async def get_version(self) -> str:
         resp = await self._send_and_receive("GSV")
-        data = self._parse_response(resp)
-        return data or "Unknown"
+        _, data = self._parse_response(resp)
+        return data if data and data != "+" else "Unknown"

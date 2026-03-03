@@ -4,6 +4,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+import voluptuous as vol
 from homeassistant.components.media_player import (
     MediaPlayerEntity,
     MediaPlayerEntityFeature,
@@ -11,6 +12,7 @@ from homeassistant.components.media_player import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers import entity_platform
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
@@ -47,6 +49,18 @@ async def async_setup_entry(
         if entry.options.get(f"zone_{zone}_visible", True):
             entities.append(AudacMTXZone(coordinator, zone, entry))
     async_add_entities(entities)
+
+    platform = entity_platform.async_get_current_platform()
+    platform.async_register_entity_service(
+        "set_bass",
+        {vol.Required("bass"): vol.All(int, vol.Range(min=0, max=14))},
+        "async_set_bass",
+    )
+    platform.async_register_entity_service(
+        "set_treble",
+        {vol.Required("treble"): vol.All(int, vol.Range(min=0, max=14))},
+        "async_set_treble",
+    )
 
 
 class AudacMTXZone(CoordinatorEntity[AudacMTXCoordinator], MediaPlayerEntity):
@@ -156,3 +170,11 @@ class AudacMTXZone(CoordinatorEntity[AudacMTXCoordinator], MediaPlayerEntity):
                 await self.coordinator.client.set_routing(self._zone, input_id)
                 await self.coordinator.async_request_refresh()
                 return
+
+    async def async_set_bass(self, bass: int) -> None:
+        await self.coordinator.client.set_bass(self._zone, bass)
+        await self.coordinator.async_request_refresh()
+
+    async def async_set_treble(self, treble: int) -> None:
+        await self.coordinator.client.set_treble(self._zone, treble)
+        await self.coordinator.async_request_refresh()

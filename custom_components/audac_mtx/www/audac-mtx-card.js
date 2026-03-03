@@ -1,4 +1,152 @@
-const CARD_VERSION = "1.0.0";
+const CARD_VERSION = "1.1.0";
+
+const MTX_ICONS = {
+  music: '<path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>',
+  speaker: '<path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>',
+  speakerMuted: '<path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/>',
+  speakerSmall: '<path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/>',
+  source: '<path d="M21 3H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H3V5h18v14zM9 8h2v8H9zm4 2h2v6h-2z"/>',
+  bass: '<path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>',
+  treble: '<path d="M12 3l.01 10.55c-.59-.34-1.27-.55-2-.55C7.79 13 6 14.79 6 17s1.79 4 4.01 4S14 19.21 14 17V7h4V3h-6z"/>',
+  chevron: '<path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/>',
+  equalizer: '<path d="M10 20h4V4h-4v16zm-6 0h4v-8H4v8zM16 9v11h4V9h-4z"/>',
+};
+
+function mtxThemeVars(isDark) {
+  return {
+    bg: isDark ? "rgba(30, 33, 40, 0.95)" : "rgba(255, 255, 255, 0.95)",
+    cardBg: isDark ? "rgba(40, 44, 52, 0.8)" : "rgba(245, 247, 250, 0.8)",
+    cardBgHover: isDark ? "rgba(50, 55, 65, 0.9)" : "rgba(235, 238, 245, 0.9)",
+    text: isDark ? "#e4e6eb" : "#1a1c20",
+    textSec: isDark ? "rgba(228, 230, 235, 0.6)" : "rgba(26, 28, 32, 0.5)",
+    accent: "#7c6bf0",
+    accentLight: isDark ? "rgba(124, 107, 240, 0.15)" : "rgba(124, 107, 240, 0.1)",
+    border: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)",
+    mutedColor: "#ef5350",
+    isDark,
+  };
+}
+
+function mtxIsDark(theme) {
+  return theme === "dark" || (theme === "auto" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+}
+
+function mtxSvg(icon, size = 22) {
+  return `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="currentColor">${MTX_ICONS[icon]}</svg>`;
+}
+
+function mtxAutoDiscover(hass) {
+  if (!hass) return [];
+  return Object.keys(hass.states)
+    .filter((id) => id.startsWith("media_player.") && id.includes("audac_mtx"))
+    .sort();
+}
+
+function mtxBaseStyles(t) {
+  return `
+    :host { display: block; --accent: ${t.accent}; --accent-light: ${t.accentLight}; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    .mtx-card {
+      background: ${t.bg}; border-radius: 24px; padding: 20px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      color: ${t.text}; backdrop-filter: blur(20px); border: 1px solid ${t.border};
+    }
+    .mtx-header {
+      display: flex; align-items: center; gap: 14px; margin-bottom: 16px; padding: 0 4px;
+    }
+    .mtx-header-icon {
+      width: 42px; height: 42px; border-radius: 14px;
+      background: linear-gradient(135deg, ${t.accent}, #a78bfa);
+      display: flex; align-items: center; justify-content: center; color: white; flex-shrink: 0;
+    }
+    .mtx-header-content { flex: 1; min-width: 0; }
+    .mtx-header-title { font-size: 16px; font-weight: 700; letter-spacing: -0.3px; line-height: 1.3; }
+    .mtx-header-sub { font-size: 11px; color: ${t.textSec}; font-weight: 500; }
+    .mtx-header-badge {
+      background: ${t.accentLight}; color: ${t.accent};
+      font-size: 13px; font-weight: 700; padding: 5px 11px; border-radius: 12px; white-space: nowrap;
+    }
+    .mtx-label {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: ${t.textSec};
+    }
+    .mtx-slider-wrap {
+      flex: 1; position: relative; height: 36px; display: flex; align-items: center;
+      background: ${t.isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)'}; border-radius: 10px; overflow: hidden;
+    }
+    .mtx-slider-fill {
+      position: absolute; top: 0; left: 0; height: 100%;
+      background: linear-gradient(90deg, ${t.accentLight}, ${t.isDark ? 'rgba(124,107,240,0.25)' : 'rgba(124,107,240,0.18)'});
+      border-radius: 10px; transition: width 0.1s ease; pointer-events: none;
+    }
+    .mtx-slider {
+      -webkit-appearance: none; appearance: none;
+      width: 100%; height: 100%; background: transparent;
+      cursor: pointer; position: relative; z-index: 2; margin: 0; padding: 0 12px;
+    }
+    .mtx-slider::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%;
+      background: ${t.accent}; box-shadow: 0 2px 6px rgba(124,107,240,0.4);
+      cursor: pointer; transition: transform 0.15s ease;
+    }
+    .mtx-slider::-webkit-slider-thumb:hover { transform: scale(1.2); }
+    .mtx-slider::-moz-range-thumb {
+      width: 16px; height: 16px; border-radius: 50%;
+      background: ${t.accent}; box-shadow: 0 2px 6px rgba(124,107,240,0.4); cursor: pointer; border: none;
+    }
+    .mtx-val {
+      font-size: 13px; font-weight: 700; color: ${t.accent};
+      min-width: 42px; text-align: right; flex-shrink: 0; line-height: 1.2;
+    }
+    .mtx-val small { font-size: 10px; font-weight: 500; color: ${t.textSec}; }
+    .mtx-btn {
+      width: 36px; height: 36px; border-radius: 10px; border: none;
+      background: ${t.isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)'};
+      color: ${t.textSec}; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.2s ease; flex-shrink: 0;
+    }
+    .mtx-btn:hover { background: ${t.isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'}; }
+    .mtx-btn.active-mute {
+      background: ${t.isDark ? 'rgba(239,83,80,0.2)' : 'rgba(239,83,80,0.12)'}; color: ${t.mutedColor};
+    }
+    .mtx-source-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 6px;
+    }
+    .mtx-source-btn {
+      padding: 8px 10px; border-radius: 10px; border: 1px solid ${t.border};
+      background: ${t.isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)'};
+      color: ${t.textSec}; font-size: 11px; font-weight: 600;
+      cursor: pointer; transition: all 0.2s ease;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .mtx-source-btn:hover {
+      background: ${t.isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)'}; color: ${t.text};
+    }
+    .mtx-source-btn.active {
+      background: ${t.accentLight}; color: ${t.accent};
+      border-color: ${t.isDark ? 'rgba(124,107,240,0.3)' : 'rgba(124,107,240,0.2)'};
+    }
+    .mtx-empty {
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; padding: 30px 20px; gap: 8px; color: ${t.textSec};
+    }
+    .mtx-empty p { font-size: 14px; font-weight: 600; }
+    .mtx-empty span { font-size: 12px; opacity: 0.6; text-align: center; }
+  `;
+}
+
+function singleCardEditorStyles() {
+  return `
+    :host { display: block; }
+    .editor { padding: 16px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    .field { margin-bottom: 12px; }
+    label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 4px; color: var(--primary-text-color, #333); }
+    input, select { width: 100%; padding: 8px 12px; border: 1px solid var(--divider-color, #ddd); border-radius: 8px; font-size: 14px; background: var(--card-background-color, #fff); color: var(--primary-text-color, #333); }
+    .hint { font-size: 11px; color: var(--secondary-text-color, #888); margin-top: 2px; }
+  `;
+}
+
 
 class AudacMTXCard extends HTMLElement {
   constructor() {
@@ -14,25 +162,12 @@ class AudacMTXCard extends HTMLElement {
   }
 
   static getStubConfig() {
-    return {
-      title: "Audac MTX",
-      zones: [],
-      show_bass_treble: true,
-      show_source: true,
-      theme: "auto",
-    };
+    return { title: "Audac MTX", zones: [], show_bass_treble: true, show_source: true, theme: "auto" };
   }
 
   setConfig(config) {
     if (!config) throw new Error("Invalid configuration");
-    this._config = {
-      title: "Audac MTX",
-      zones: [],
-      show_bass_treble: true,
-      show_source: true,
-      theme: "auto",
-      ...config,
-    };
+    this._config = { title: "Audac MTX", zones: [], show_bass_treble: true, show_source: true, theme: "auto", ...config };
     this._render();
   }
 
@@ -44,588 +179,533 @@ class AudacMTXCard extends HTMLElement {
   _getZones() {
     if (!this._hass) return [];
     const zones = this._config.zones || [];
-
     if (zones.length > 0) {
       return zones.map((z) => {
         const entityId = typeof z === "string" ? z : z.entity;
         const entity = this._hass.states[entityId];
         if (!entity) return null;
-        return {
-          entityId,
-          entity,
-          name: (typeof z === "object" && z.name) || entity.attributes.friendly_name || entityId,
-          icon: (typeof z === "object" && z.icon) || "mdi:speaker",
-        };
+        return { entityId, entity, name: (typeof z === "object" && z.name) || entity.attributes.friendly_name || entityId };
       }).filter(Boolean);
     }
-
-    return this._autoDiscoverZones();
+    return mtxAutoDiscover(this._hass).map((entityId) => ({
+      entityId, entity: this._hass.states[entityId],
+      name: this._hass.states[entityId].attributes.friendly_name || entityId,
+    }));
   }
 
-  _autoDiscoverZones() {
-    if (!this._hass) return [];
-    return Object.keys(this._hass.states)
-      .filter((id) => id.startsWith("media_player.") && id.includes("audac_mtx"))
-      .sort()
-      .map((entityId) => ({
-        entityId,
-        entity: this._hass.states[entityId],
-        name: this._hass.states[entityId].attributes.friendly_name || entityId,
-        icon: "mdi:speaker",
-      }));
-  }
+  _toggleExpand(entityId) { this._expanded[entityId] = !this._expanded[entityId]; this._render(); }
 
-  _toggleExpand(entityId) {
-    this._expanded[entityId] = !this._expanded[entityId];
-    this._render();
-  }
+  async _callService(domain, service, data) { if (this._hass) await this._hass.callService(domain, service, data); }
 
-  async _callService(domain, service, data) {
-    if (this._hass) {
-      await this._hass.callService(domain, service, data);
-    }
-  }
-
-  _handleVolumeChange(entityId, value) {
-    this._callService("media_player", "volume_set", {
-      entity_id: entityId,
-      volume_level: value / 100,
-    });
-  }
-
-  _handleMuteToggle(entityId, currentMute) {
-    this._callService("media_player", "volume_mute", {
-      entity_id: entityId,
-      is_volume_muted: !currentMute,
-    });
-  }
-
-  _handleSourceSelect(entityId, source) {
-    this._callService("media_player", "select_source", {
-      entity_id: entityId,
-      source: source,
-    });
-  }
-
-  _getVolumePercent(zone) {
-    const vol = zone.entity.attributes.volume_level;
-    if (vol == null) return 0;
-    return Math.round(vol * 100);
-  }
-
-  _isMuted(zone) {
-    return zone.entity.attributes.is_volume_muted === true;
-  }
-
-  _getSource(zone) {
-    return zone.entity.attributes.source || "---";
-  }
-
-  _getSourceList(zone) {
-    return zone.entity.attributes.source_list || [];
-  }
-
-  _getBass(zone) {
-    return zone.entity.attributes.bass;
-  }
-
-  _getTreble(zone) {
-    return zone.entity.attributes.treble;
-  }
+  _vol(z) { const v = z.entity.attributes.volume_level; return v == null ? 0 : Math.round(v * 100); }
+  _muted(z) { return z.entity.attributes.is_volume_muted === true; }
+  _src(z) { return z.entity.attributes.source || "---"; }
+  _srcList(z) { return z.entity.attributes.source_list || []; }
 
   _render() {
     if (!this.shadowRoot) return;
-
     const zones = this._getZones();
-    const isDark = this._config.theme === "dark" ||
-      (this._config.theme === "auto" && window.matchMedia("(prefers-color-scheme: dark)").matches);
-
-    const activeCount = zones.filter(z => !this._isMuted(z) && this._getVolumePercent(z) > 0).length;
+    const t = mtxThemeVars(mtxIsDark(this._config.theme));
+    const activeCount = zones.filter(z => !this._muted(z) && this._vol(z) > 0).length;
 
     this.shadowRoot.innerHTML = `
-      <style>${this._getStyles(isDark)}</style>
-      <div class="audac-mtx-card ${isDark ? 'dark' : 'light'}">
-        <div class="card-header">
-          <div class="header-icon">
-            <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
-              <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
-            </svg>
+      <style>
+        ${mtxBaseStyles(t)}
+        .zones-container { display: flex; flex-direction: column; gap: 8px; }
+        .zone-card {
+          background: ${t.cardBg}; border-radius: 18px; overflow: hidden;
+          transition: all 0.3s cubic-bezier(0.25,0.1,0.25,1); border: 1px solid transparent;
+        }
+        .zone-card:hover { background: ${t.cardBgHover}; }
+        .zone-card.expanded {
+          border-color: ${t.isDark ? 'rgba(124,107,240,0.2)' : 'rgba(124,107,240,0.15)'};
+          background: ${t.isDark ? 'rgba(45,48,58,0.9)' : 'rgba(240,242,248,0.95)'};
+        }
+        .zone-card.muted .zone-vol-bg { opacity: 0 !important; }
+        .zone-card.off { opacity: 0.5; }
+        .zone-main { position: relative; cursor: pointer; padding: 14px 16px; overflow: hidden; }
+        .zone-vol-bg {
+          position: absolute; top: 0; left: 0; height: 100%;
+          background: linear-gradient(90deg, ${t.accentLight}, transparent);
+          transition: width 0.5s cubic-bezier(0.25,0.1,0.25,1); pointer-events: none;
+        }
+        .zone-content { position: relative; display: flex; align-items: center; gap: 12px; z-index: 1; }
+        .zone-icon {
+          width: 40px; height: 40px; border-radius: 12px;
+          background: ${t.isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)'};
+          display: flex; align-items: center; justify-content: center;
+          color: ${t.textSec}; transition: all 0.3s ease; flex-shrink: 0;
+        }
+        .zone-icon.active { background: linear-gradient(135deg, ${t.accent}, #a78bfa); color: white; }
+        .zone-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+        .zone-name { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .zone-detail { font-size: 11px; color: ${t.textSec}; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .zone-badge {
+          font-size: 13px; font-weight: 700; color: ${t.accent};
+          background: ${t.accentLight}; padding: 4px 10px; border-radius: 10px;
+          white-space: nowrap; min-width: 48px; text-align: center; flex-shrink: 0;
+        }
+        .zone-badge.muted { color: ${t.mutedColor}; background: ${t.isDark ? 'rgba(239,83,80,0.15)' : 'rgba(239,83,80,0.1)'}; font-size: 11px; }
+        .zone-chevron { color: ${t.textSec}; transition: transform 0.3s ease; flex-shrink: 0; }
+        .zone-chevron.rotated { transform: rotate(180deg); }
+        .zone-controls {
+          padding: 4px 16px 16px; display: flex; flex-direction: column; gap: 14px;
+          animation: slideDown 0.3s cubic-bezier(0.25,0.1,0.25,1);
+        }
+        @keyframes slideDown { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+        .ctrl-section { display: flex; flex-direction: column; gap: 8px; }
+        .vol-row { display: flex; align-items: center; gap: 10px; }
+        .tone-section { flex-direction: row; gap: 12px; }
+        .tone-ctrl {
+          flex: 1; display: flex; flex-direction: column; gap: 6px;
+          background: ${t.isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)'};
+          padding: 10px 12px; border-radius: 12px;
+        }
+        .tone-val { font-size: 18px; font-weight: 700; color: ${t.text}; }
+      </style>
+      <div class="mtx-card">
+        <div class="mtx-header">
+          <div class="mtx-header-icon">${mtxSvg('music', 24)}</div>
+          <div class="mtx-header-content">
+            <h2 class="mtx-header-title">${this._config.title}</h2>
+            <span class="mtx-header-sub">${zones.length} Zone${zones.length !== 1 ? 'n' : ''}</span>
           </div>
-          <div class="header-content">
-            <h2 class="header-title">${this._config.title}</h2>
-            <span class="header-subtitle">${zones.length} Zone${zones.length !== 1 ? 'n' : ''}</span>
-          </div>
-          <div class="header-badge">${activeCount}/${zones.length}</div>
+          <div class="mtx-header-badge">${activeCount}/${zones.length}</div>
         </div>
         <div class="zones-container">
-          ${zones.length > 0 ? zones.map((z) => this._renderZone(z)).join("") : this._renderEmptyState()}
+          ${zones.length > 0 ? zones.map(z => this._renderZone(z, t)).join("") : `<div class="mtx-empty">${mtxSvg('music', 48)}<p>Keine Zonen gefunden</p><span>Audac MTX Integration einrichten oder Zonen manuell konfigurieren</span></div>`}
         </div>
       </div>
     `;
-
-    this._attachEventListeners();
+    this._attachEvents();
   }
 
-  _renderEmptyState() {
+  _renderZone(z, t) {
+    const exp = this._expanded[z.entityId] || false;
+    const vol = this._vol(z);
+    const muted = this._muted(z);
+    const src = this._src(z);
+    const isOff = z.entity.state === "off";
+    const active = !isOff && !muted && vol > 0;
     return `
-      <div class="empty-state">
-        <svg viewBox="0 0 24 24" width="48" height="48" fill="currentColor" opacity="0.3">
-          <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
-        </svg>
-        <p>Keine Zonen gefunden</p>
-        <span>Bitte Audac MTX Integration einrichten oder Zonen manuell konfigurieren</span>
-      </div>
-    `;
-  }
-
-  _renderZone(zone) {
-    const isExpanded = this._expanded[zone.entityId] || false;
-    const volumePercent = this._getVolumePercent(zone);
-    const isMuted = this._isMuted(zone);
-    const source = this._getSource(zone);
-    const isOff = zone.entity.state === "off";
-    const isActive = !isOff && !isMuted && volumePercent > 0;
-
-    return `
-      <div class="zone-card ${isExpanded ? 'expanded' : ''} ${isMuted ? 'muted' : ''} ${isOff ? 'off' : ''}" data-entity="${zone.entityId}">
-        <div class="zone-main" data-toggle="${zone.entityId}">
-          <div class="zone-volume-bg" style="width: ${isMuted ? 0 : volumePercent}%"></div>
+      <div class="zone-card ${exp ? 'expanded' : ''} ${muted ? 'muted' : ''} ${isOff ? 'off' : ''}" data-entity="${z.entityId}">
+        <div class="zone-main" data-toggle="${z.entityId}">
+          <div class="zone-vol-bg" style="width: ${muted ? 0 : vol}%"></div>
           <div class="zone-content">
-            <div class="zone-icon ${isActive ? 'active' : ''}">
-              <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
-                ${isMuted
-                  ? '<path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/>'
-                  : '<path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>'
-                }
-              </svg>
-            </div>
+            <div class="zone-icon ${active ? 'active' : ''}">${mtxSvg(muted ? 'speakerMuted' : 'speaker')}</div>
             <div class="zone-info">
-              <span class="zone-name">${zone.name}</span>
-              <span class="zone-detail">
-                ${isMuted ? 'Stumm' : volumePercent + '%'}
-                ${this._config.show_source && source !== '---' ? ' · ' + source : ''}
-              </span>
+              <span class="zone-name">${z.name}</span>
+              <span class="zone-detail">${muted ? 'Stumm' : vol + '%'}${this._config.show_source && src !== '---' ? ' \u00b7 ' + src : ''}</span>
             </div>
-            <div class="zone-volume-badge ${isMuted ? 'muted-badge' : ''}">
-              ${isMuted ? 'MUTE' : volumePercent + '%'}
-            </div>
-            <div class="zone-expand-icon ${isExpanded ? 'rotated' : ''}">
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-                <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/>
-              </svg>
-            </div>
+            <div class="zone-badge ${muted ? 'muted' : ''}">${muted ? 'MUTE' : vol + '%'}</div>
+            <div class="zone-chevron ${exp ? 'rotated' : ''}">${mtxSvg('chevron', 20)}</div>
           </div>
         </div>
-
-        ${isExpanded ? this._renderExpandedControls(zone) : ''}
+        ${exp ? this._renderControls(z, t) : ''}
       </div>
     `;
   }
 
-  _renderExpandedControls(zone) {
-    const volumePercent = this._getVolumePercent(zone);
-    const isMuted = this._isMuted(zone);
-    const source = this._getSource(zone);
-    const sourceList = this._getSourceList(zone);
-    const bass = this._getBass(zone);
-    const treble = this._getTreble(zone);
-    const volumeDb = zone.entity.attributes.volume_db;
-
+  _renderControls(z, t) {
+    const vol = this._vol(z);
+    const muted = this._muted(z);
+    const src = this._src(z);
+    const srcList = this._srcList(z);
+    const bass = z.entity.attributes.bass;
+    const treble = z.entity.attributes.treble;
+    const volDb = z.entity.attributes.volume_db;
     return `
       <div class="zone-controls">
-        <div class="control-section">
-          <div class="control-label">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-              <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/>
-            </svg>
-            Lautstärke
-          </div>
-          <div class="volume-control">
-            <button class="btn-icon btn-mute ${isMuted ? 'active' : ''}" data-mute="${zone.entityId}" data-muted="${isMuted}">
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-                ${isMuted
-                  ? '<path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/>'
-                  : '<path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>'
-                }
-              </svg>
+        <div class="ctrl-section">
+          <div class="mtx-label">${mtxSvg('speakerSmall', 16)} Lautst\u00e4rke</div>
+          <div class="vol-row">
+            <button class="mtx-btn ${muted ? 'active-mute' : ''}" data-mute="${z.entityId}" data-muted="${muted}">
+              ${mtxSvg(muted ? 'speakerMuted' : 'speaker', 18)}
             </button>
-            <div class="slider-container">
-              <input type="range" class="volume-slider" min="0" max="100" step="1" value="${volumePercent}" data-volume="${zone.entityId}" />
-              <div class="slider-fill" style="width: ${volumePercent}%"></div>
+            <div class="mtx-slider-wrap">
+              <input type="range" class="mtx-slider" min="0" max="100" step="1" value="${vol}" data-volume="${z.entityId}" />
+              <div class="mtx-slider-fill" style="width: ${vol}%"></div>
             </div>
-            <span class="volume-value">${volumePercent}%${volumeDb != null ? '<br><small>' + volumeDb + ' dB</small>' : ''}</span>
+            <span class="mtx-val">${vol}%${volDb != null ? '<br><small>' + volDb + ' dB</small>' : ''}</span>
           </div>
         </div>
-
-        ${this._config.show_source && sourceList.length > 0 ? `
-        <div class="control-section">
-          <div class="control-label">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-              <path d="M21 3H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H3V5h18v14zM9 8h2v8H9zm4 2h2v6h-2z"/>
-            </svg>
-            Quelle
+        ${this._config.show_source && srcList.length > 0 ? `
+        <div class="ctrl-section">
+          <div class="mtx-label">${mtxSvg('source', 16)} Quelle</div>
+          <div class="mtx-source-grid">
+            ${srcList.map(s => `<button class="mtx-source-btn ${s === src ? 'active' : ''}" data-source="${z.entityId}" data-value="${s}">${s}</button>`).join("")}
           </div>
-          <div class="source-grid">
-            ${sourceList.map((s) => `
-              <button class="source-btn ${s === source ? 'active' : ''}" data-source="${zone.entityId}" data-value="${s}">
-                ${s}
-              </button>
-            `).join("")}
-          </div>
-        </div>
-        ` : ''}
-
+        </div>` : ''}
         ${this._config.show_bass_treble && (bass != null || treble != null) ? `
-        <div class="control-section tone-section">
-          ${bass != null ? `
-          <div class="tone-control">
-            <div class="control-label">Bass</div>
-            <div class="tone-value">${bass > 0 ? '+' : ''}${bass} dB</div>
-          </div>
-          ` : ''}
-          ${treble != null ? `
-          <div class="tone-control">
-            <div class="control-label">Höhen</div>
-            <div class="tone-value">${treble > 0 ? '+' : ''}${treble} dB</div>
-          </div>
-          ` : ''}
-        </div>
-        ` : ''}
+        <div class="ctrl-section tone-section">
+          ${bass != null ? `<div class="tone-ctrl"><div class="mtx-label">Bass</div><div class="tone-val">${bass > 0 ? '+' : ''}${bass} dB</div></div>` : ''}
+          ${treble != null ? `<div class="tone-ctrl"><div class="mtx-label">H\u00f6hen</div><div class="tone-val">${treble > 0 ? '+' : ''}${treble} dB</div></div>` : ''}
+        </div>` : ''}
       </div>
     `;
   }
 
-  _attachEventListeners() {
-    const root = this.shadowRoot;
-    if (!root) return;
-
-    root.querySelectorAll("[data-toggle]").forEach((el) => {
-      el.addEventListener("click", (e) => {
+  _attachEvents() {
+    const r = this.shadowRoot; if (!r) return;
+    r.querySelectorAll("[data-toggle]").forEach(el => {
+      el.addEventListener("click", e => {
         if (e.target.closest("[data-mute]") || e.target.closest("[data-volume]") || e.target.closest("[data-source]")) return;
         this._toggleExpand(el.dataset.toggle);
       });
     });
-
-    root.querySelectorAll("[data-mute]").forEach((el) => {
-      el.addEventListener("click", (e) => {
-        e.stopPropagation();
-        this._handleMuteToggle(el.dataset.mute, el.dataset.muted === "true");
-      });
+    r.querySelectorAll("[data-mute]").forEach(el => {
+      el.addEventListener("click", e => { e.stopPropagation(); this._callService("media_player", "volume_mute", { entity_id: el.dataset.mute, is_volume_muted: el.dataset.muted !== "true" }); });
     });
-
-    root.querySelectorAll("[data-volume]").forEach((el) => {
-      el.addEventListener("input", (e) => {
-        const val = parseInt(e.target.value);
-        const fill = e.target.closest('.slider-container').querySelector('.slider-fill');
-        if (fill) fill.style.width = val + '%';
-        const valSpan = e.target.closest('.volume-control').querySelector('.volume-value');
-        if (valSpan) valSpan.innerHTML = val + '%';
+    r.querySelectorAll("[data-volume]").forEach(el => {
+      el.addEventListener("input", e => {
+        const v = parseInt(e.target.value);
+        const fill = e.target.closest('.mtx-slider-wrap').querySelector('.mtx-slider-fill');
+        if (fill) fill.style.width = v + '%';
+        const valSpan = e.target.closest('.vol-row').querySelector('.mtx-val');
+        if (valSpan) valSpan.innerHTML = v + '%';
       });
-      el.addEventListener("change", (e) => {
-        this._handleVolumeChange(el.dataset.volume, parseInt(e.target.value));
-      });
-      el.addEventListener("click", (e) => e.stopPropagation());
+      el.addEventListener("change", e => { this._callService("media_player", "volume_set", { entity_id: el.dataset.volume, volume_level: parseInt(e.target.value) / 100 }); });
+      el.addEventListener("click", e => e.stopPropagation());
     });
-
-    root.querySelectorAll("[data-source]").forEach((el) => {
-      el.addEventListener("click", (e) => {
-        e.stopPropagation();
-        this._handleSourceSelect(el.dataset.source, el.dataset.value);
-      });
+    r.querySelectorAll("[data-source]").forEach(el => {
+      el.addEventListener("click", e => { e.stopPropagation(); this._callService("media_player", "select_source", { entity_id: el.dataset.source, source: el.dataset.value }); });
     });
   }
 
-  _getStyles(isDark) {
-    const bg = isDark ? "rgba(30, 33, 40, 0.95)" : "rgba(255, 255, 255, 0.95)";
-    const cardBg = isDark ? "rgba(40, 44, 52, 0.8)" : "rgba(245, 247, 250, 0.8)";
-    const cardBgHover = isDark ? "rgba(50, 55, 65, 0.9)" : "rgba(235, 238, 245, 0.9)";
-    const text = isDark ? "#e4e6eb" : "#1a1c20";
-    const textSec = isDark ? "rgba(228, 230, 235, 0.6)" : "rgba(26, 28, 32, 0.5)";
-    const accent = "#7c6bf0";
-    const accentLight = isDark ? "rgba(124, 107, 240, 0.15)" : "rgba(124, 107, 240, 0.1)";
-    const border = isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)";
-    const mutedColor = "#ef5350";
-
-    return `
-      :host { display: block; --accent: ${accent}; --accent-light: ${accentLight}; }
-      * { box-sizing: border-box; margin: 0; padding: 0; }
-
-      .audac-mtx-card {
-        background: ${bg};
-        border-radius: 24px;
-        padding: 20px;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-        color: ${text};
-        backdrop-filter: blur(20px);
-        border: 1px solid ${border};
-      }
-
-      .card-header {
-        display: flex; align-items: center; gap: 14px;
-        margin-bottom: 18px; padding: 0 4px;
-      }
-
-      .header-icon {
-        width: 48px; height: 48px; border-radius: 16px;
-        background: linear-gradient(135deg, ${accent}, #a78bfa);
-        display: flex; align-items: center; justify-content: center;
-        color: white; flex-shrink: 0;
-      }
-
-      .header-content { flex: 1; min-width: 0; }
-
-      .header-title {
-        font-size: 18px; font-weight: 700;
-        letter-spacing: -0.3px; line-height: 1.3;
-      }
-
-      .header-subtitle { font-size: 12px; color: ${textSec}; font-weight: 500; }
-
-      .header-badge {
-        background: ${accentLight}; color: ${accent};
-        font-size: 13px; font-weight: 700;
-        padding: 6px 12px; border-radius: 12px; white-space: nowrap;
-      }
-
-      .zones-container { display: flex; flex-direction: column; gap: 8px; }
-
-      .zone-card {
-        background: ${cardBg}; border-radius: 18px; overflow: hidden;
-        transition: all 0.3s cubic-bezier(0.25, 0.1, 0.25, 1);
-        border: 1px solid transparent;
-      }
-
-      .zone-card:hover { background: ${cardBgHover}; }
-
-      .zone-card.expanded {
-        border-color: ${isDark ? 'rgba(124, 107, 240, 0.2)' : 'rgba(124, 107, 240, 0.15)'};
-        background: ${isDark ? 'rgba(45, 48, 58, 0.9)' : 'rgba(240, 242, 248, 0.95)'};
-      }
-
-      .zone-card.muted .zone-volume-bg { opacity: 0 !important; }
-      .zone-card.off { opacity: 0.5; }
-
-      .zone-main {
-        position: relative; cursor: pointer;
-        padding: 14px 16px; overflow: hidden;
-      }
-
-      .zone-volume-bg {
-        position: absolute; top: 0; left: 0; height: 100%;
-        background: linear-gradient(90deg, ${accentLight}, transparent);
-        transition: width 0.5s cubic-bezier(0.25, 0.1, 0.25, 1);
-        pointer-events: none;
-      }
-
-      .zone-content {
-        position: relative; display: flex; align-items: center;
-        gap: 12px; z-index: 1;
-      }
-
-      .zone-icon {
-        width: 40px; height: 40px; border-radius: 12px;
-        background: ${isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)'};
-        display: flex; align-items: center; justify-content: center;
-        color: ${textSec}; transition: all 0.3s ease; flex-shrink: 0;
-      }
-
-      .zone-icon.active {
-        background: linear-gradient(135deg, ${accent}, #a78bfa); color: white;
-      }
-
-      .zone-info {
-        flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px;
-      }
-
-      .zone-name {
-        font-size: 14px; font-weight: 600;
-        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-      }
-
-      .zone-detail {
-        font-size: 11px; color: ${textSec}; font-weight: 500;
-        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-      }
-
-      .zone-volume-badge {
-        font-size: 13px; font-weight: 700; color: ${accent};
-        background: ${accentLight}; padding: 4px 10px; border-radius: 10px;
-        white-space: nowrap; min-width: 48px; text-align: center; flex-shrink: 0;
-      }
-
-      .zone-volume-badge.muted-badge {
-        color: ${mutedColor};
-        background: ${isDark ? 'rgba(239, 83, 80, 0.15)' : 'rgba(239, 83, 80, 0.1)'};
-        font-size: 11px;
-      }
-
-      .zone-expand-icon {
-        color: ${textSec}; transition: transform 0.3s ease; flex-shrink: 0;
-      }
-
-      .zone-expand-icon.rotated { transform: rotate(180deg); }
-
-      .zone-controls {
-        padding: 4px 16px 16px; display: flex; flex-direction: column; gap: 14px;
-        animation: slideDown 0.3s cubic-bezier(0.25, 0.1, 0.25, 1);
-      }
-
-      @keyframes slideDown {
-        from { opacity: 0; transform: translateY(-8px); }
-        to { opacity: 1; transform: translateY(0); }
-      }
-
-      .control-section { display: flex; flex-direction: column; gap: 8px; }
-
-      .control-label {
-        display: flex; align-items: center; gap: 6px;
-        font-size: 11px; font-weight: 600;
-        text-transform: uppercase; letter-spacing: 0.8px; color: ${textSec};
-      }
-
-      .volume-control { display: flex; align-items: center; gap: 10px; }
-
-      .btn-icon {
-        width: 36px; height: 36px; border-radius: 10px; border: none;
-        background: ${isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)'};
-        color: ${textSec}; cursor: pointer;
-        display: flex; align-items: center; justify-content: center;
-        transition: all 0.2s ease; flex-shrink: 0;
-      }
-
-      .btn-icon:hover {
-        background: ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'};
-      }
-
-      .btn-mute.active {
-        background: ${isDark ? 'rgba(239, 83, 80, 0.2)' : 'rgba(239, 83, 80, 0.12)'};
-        color: ${mutedColor};
-      }
-
-      .slider-container {
-        flex: 1; position: relative; height: 36px;
-        display: flex; align-items: center;
-        background: ${isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)'};
-        border-radius: 10px; overflow: hidden;
-      }
-
-      .slider-fill {
-        position: absolute; top: 0; left: 0; height: 100%;
-        background: linear-gradient(90deg, ${accentLight}, ${isDark ? 'rgba(124, 107, 240, 0.25)' : 'rgba(124, 107, 240, 0.18)'});
-        border-radius: 10px; transition: width 0.1s ease; pointer-events: none;
-      }
-
-      .volume-slider {
-        -webkit-appearance: none; appearance: none;
-        width: 100%; height: 100%; background: transparent;
-        cursor: pointer; position: relative; z-index: 2; margin: 0; padding: 0 12px;
-      }
-
-      .volume-slider::-webkit-slider-thumb {
-        -webkit-appearance: none; width: 16px; height: 16px;
-        border-radius: 50%; background: ${accent};
-        box-shadow: 0 2px 6px rgba(124, 107, 240, 0.4);
-        cursor: pointer; transition: transform 0.15s ease;
-      }
-
-      .volume-slider::-webkit-slider-thumb:hover { transform: scale(1.2); }
-
-      .volume-slider::-moz-range-thumb {
-        width: 16px; height: 16px; border-radius: 50%;
-        background: ${accent}; box-shadow: 0 2px 6px rgba(124, 107, 240, 0.4);
-        cursor: pointer; border: none;
-      }
-
-      .volume-value {
-        font-size: 13px; font-weight: 700; color: ${accent};
-        min-width: 42px; text-align: right; flex-shrink: 0; line-height: 1.2;
-      }
-
-      .volume-value small {
-        font-size: 10px; font-weight: 500; color: ${textSec};
-      }
-
-      .source-grid {
-        display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 6px;
-      }
-
-      .source-btn {
-        padding: 8px 10px; border-radius: 10px;
-        border: 1px solid ${border};
-        background: ${isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)'};
-        color: ${textSec}; font-size: 11px; font-weight: 600;
-        cursor: pointer; transition: all 0.2s ease;
-        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-      }
-
-      .source-btn:hover {
-        background: ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)'};
-        color: ${text};
-      }
-
-      .source-btn.active {
-        background: ${accentLight}; color: ${accent};
-        border-color: ${isDark ? 'rgba(124, 107, 240, 0.3)' : 'rgba(124, 107, 240, 0.2)'};
-      }
-
-      .tone-section { flex-direction: row; gap: 12px; }
-
-      .tone-control {
-        flex: 1; display: flex; flex-direction: column; gap: 6px;
-        background: ${isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)'};
-        padding: 10px 12px; border-radius: 12px;
-      }
-
-      .tone-value { font-size: 18px; font-weight: 700; color: ${text}; }
-
-      .empty-state {
-        display: flex; flex-direction: column; align-items: center;
-        justify-content: center; padding: 40px 20px; gap: 8px; color: ${textSec};
-      }
-
-      .empty-state p { font-size: 14px; font-weight: 600; }
-      .empty-state span { font-size: 12px; opacity: 0.6; text-align: center; }
-    `;
-  }
-
-  getCardSize() {
-    return 1 + this._getZones().length;
-  }
+  getCardSize() { return 1 + this._getZones().length; }
 }
 
+
 class AudacMTXCardEditor extends HTMLElement {
-  constructor() {
-    super();
-    this.attachShadow({ mode: "open" });
-    this._config = {};
-  }
-
-  setConfig(config) {
-    this._config = { ...config };
-    this._render();
-  }
-
+  constructor() { super(); this.attachShadow({ mode: "open" }); this._config = {}; }
+  setConfig(config) { this._config = { ...config }; this._render(); }
   _render() {
     this.shadowRoot.innerHTML = `
       <style>
-        :host { display: block; }
-        .editor { padding: 16px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-        .field { margin-bottom: 12px; }
-        label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 4px; color: var(--primary-text-color, #333); }
-        input, select { width: 100%; padding: 8px 12px; border: 1px solid var(--divider-color, #ddd); border-radius: 8px; font-size: 14px; background: var(--card-background-color, #fff); color: var(--primary-text-color, #333); }
+        ${singleCardEditorStyles()}
         .checkbox-field { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
         .checkbox-field input { width: auto; }
         .section-title { font-size: 13px; font-weight: 700; margin: 16px 0 8px; padding-top: 12px; border-top: 1px solid var(--divider-color, #ddd); color: var(--primary-text-color, #333); }
         .zone-row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
         .zone-row input { flex: 1; }
-        .hint { font-size: 11px; color: var(--secondary-text-color, #888); margin-bottom: 8px; }
         .btn-remove { border: none; background: none; cursor: pointer; color: #ef5350; font-size: 16px; padding: 2px 6px; flex-shrink: 0; }
         .btn-add { margin-top: 4px; padding: 8px 14px; border-radius: 8px; border: 1px dashed var(--divider-color, #ccc); background: transparent; color: var(--primary-text-color, #333); cursor: pointer; font-size: 13px; width: 100%; }
       </style>
       <div class="editor">
+        <div class="field"><label>Titel</label><input type="text" id="title" value="${this._config.title || 'Audac MTX'}" /></div>
+        <div class="field"><label>Design</label>
+          <select id="theme">
+            <option value="auto" ${this._config.theme === 'auto' ? 'selected' : ''}>Automatisch</option>
+            <option value="dark" ${this._config.theme === 'dark' ? 'selected' : ''}>Dunkel</option>
+            <option value="light" ${this._config.theme === 'light' ? 'selected' : ''}>Hell</option>
+          </select>
+        </div>
+        <div class="checkbox-field"><input type="checkbox" id="show_source" ${this._config.show_source !== false ? 'checked' : ''} /><label for="show_source">Quellenauswahl anzeigen</label></div>
+        <div class="checkbox-field"><input type="checkbox" id="show_bass_treble" ${this._config.show_bass_treble !== false ? 'checked' : ''} /><label for="show_bass_treble">Bass / H\u00f6hen anzeigen</label></div>
+        <div class="section-title">Zonen</div>
+        <p class="hint">Leer lassen f\u00fcr automatische Erkennung aller Audac MTX Entities.</p>
+        ${this._renderZoneRows()}
+        <button class="btn-add" id="add-zone">+ Zone hinzuf\u00fcgen</button>
+      </div>
+    `;
+    this.shadowRoot.getElementById("title").addEventListener("change", e => { this._config.title = e.target.value; this._fire(); });
+    this.shadowRoot.getElementById("theme").addEventListener("change", e => { this._config.theme = e.target.value; this._fire(); });
+    this.shadowRoot.getElementById("show_source").addEventListener("change", e => { this._config.show_source = e.target.checked; this._fire(); });
+    this.shadowRoot.getElementById("show_bass_treble").addEventListener("change", e => { this._config.show_bass_treble = e.target.checked; this._fire(); });
+    this.shadowRoot.getElementById("add-zone").addEventListener("click", () => {
+      if (!this._config.zones) this._config.zones = [];
+      this._config.zones.push({ entity: "", name: "" });
+      this._render();
+    });
+    this.shadowRoot.querySelectorAll("[data-zone-entity]").forEach(el => {
+      el.addEventListener("change", e => {
+        const i = parseInt(el.dataset.zoneEntity);
+        this._ensureZone(i);
+        if (typeof this._config.zones[i] === "string") this._config.zones[i] = { entity: e.target.value.trim(), name: "" };
+        else this._config.zones[i].entity = e.target.value.trim();
+        this._fire();
+      });
+    });
+    this.shadowRoot.querySelectorAll("[data-zone-name]").forEach(el => {
+      el.addEventListener("change", e => {
+        const i = parseInt(el.dataset.zoneName);
+        this._ensureZone(i);
+        if (typeof this._config.zones[i] === "string") this._config.zones[i] = { entity: this._config.zones[i], name: e.target.value.trim() };
+        else this._config.zones[i].name = e.target.value.trim();
+        this._fire();
+      });
+    });
+    this.shadowRoot.querySelectorAll("[data-zone-remove]").forEach(el => {
+      el.addEventListener("click", () => { this._config.zones.splice(parseInt(el.dataset.zoneRemove), 1); this._fire(); this._render(); });
+    });
+  }
+  _ensureZone(i) { if (!this._config.zones) this._config.zones = []; while (this._config.zones.length <= i) this._config.zones.push({ entity: "", name: "" }); }
+  _renderZoneRows() {
+    const z = this._config.zones || [];
+    if (z.length === 0) return '<p class="hint">Keine Zonen konfiguriert \u2013 automatische Erkennung aktiv.</p>';
+    return z.map((v, i) => {
+      const e = typeof v === "string" ? v : (v.entity || "");
+      const n = typeof v === "object" ? (v.name || "") : "";
+      return `<div class="zone-row"><input type="text" placeholder="media_player.audac_mtx_zone_${i+1}" value="${e}" data-zone-entity="${i}" /><input type="text" placeholder="Anzeigename" value="${n}" data-zone-name="${i}" style="max-width:140px;" /><button class="btn-remove" data-zone-remove="${i}">\u2715</button></div>`;
+    }).join("");
+  }
+  _fire() { this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: this._config }, bubbles: true, composed: true })); }
+}
+
+
+class AudacMTXVolumeCard extends HTMLElement {
+  constructor() { super(); this.attachShadow({ mode: "open" }); this._config = {}; this._hass = null; }
+  static getConfigElement() { return document.createElement("audac-mtx-volume-card-editor"); }
+  static getStubConfig() { return { entity: "", title: "", theme: "auto" }; }
+  setConfig(config) {
+    if (!config) throw new Error("Invalid configuration");
+    this._config = { entity: "", title: "", theme: "auto", ...config };
+    this._render();
+  }
+  set hass(hass) { this._hass = hass; this._render(); }
+  _render() {
+    if (!this.shadowRoot || !this._hass) return;
+    const entityId = this._config.entity;
+    const entity = entityId ? this._hass.states[entityId] : this._findEntity();
+    if (!entity) { this.shadowRoot.innerHTML = `<div style="padding:20px;opacity:0.5;">Entity nicht gefunden: ${entityId || '(keine konfiguriert)'}</div>`; return; }
+    const t = mtxThemeVars(mtxIsDark(this._config.theme));
+    const vol = Math.round((entity.attributes.volume_level || 0) * 100);
+    const muted = entity.attributes.is_volume_muted === true;
+    const volDb = entity.attributes.volume_db;
+    const name = this._config.title || entity.attributes.friendly_name || entityId;
+    const eid = entityId || this._findEntityId();
+    this.shadowRoot.innerHTML = `
+      <style>${mtxBaseStyles(t)}
+        .vol-row { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+      </style>
+      <div class="mtx-card">
+        <div class="mtx-header">
+          <div class="mtx-header-icon">${mtxSvg('speaker', 22)}</div>
+          <div class="mtx-header-content">
+            <div class="mtx-header-title">${name}</div>
+            <div class="mtx-header-sub">Lautst\u00e4rke</div>
+          </div>
+          <div class="mtx-header-badge">${muted ? 'MUTE' : vol + '%'}</div>
+        </div>
+        <div class="vol-row">
+          <button class="mtx-btn ${muted ? 'active-mute' : ''}" data-mute="${eid}" data-muted="${muted}">
+            ${mtxSvg(muted ? 'speakerMuted' : 'speaker', 18)}
+          </button>
+          <div class="mtx-slider-wrap">
+            <input type="range" class="mtx-slider" min="0" max="100" step="1" value="${vol}" data-volume="${eid}" />
+            <div class="mtx-slider-fill" style="width: ${vol}%"></div>
+          </div>
+          <span class="mtx-val">${vol}%${volDb != null ? '<br><small>' + volDb + ' dB</small>' : ''}</span>
+        </div>
+      </div>
+    `;
+    this._attach(eid);
+  }
+  _findEntity() { const id = this._findEntityId(); return id ? this._hass.states[id] : null; }
+  _findEntityId() { return this._config.entity || mtxAutoDiscover(this._hass)[0] || ""; }
+  _attach(eid) {
+    const r = this.shadowRoot;
+    r.querySelectorAll("[data-mute]").forEach(el => {
+      el.addEventListener("click", () => { this._hass.callService("media_player", "volume_mute", { entity_id: eid, is_volume_muted: el.dataset.muted !== "true" }); });
+    });
+    r.querySelectorAll("[data-volume]").forEach(el => {
+      el.addEventListener("input", e => {
+        const v = parseInt(e.target.value);
+        const fill = r.querySelector('.mtx-slider-fill'); if (fill) fill.style.width = v + '%';
+        const val = r.querySelector('.mtx-val'); if (val) val.innerHTML = v + '%';
+      });
+      el.addEventListener("change", e => { this._hass.callService("media_player", "volume_set", { entity_id: eid, volume_level: parseInt(e.target.value) / 100 }); });
+    });
+  }
+  getCardSize() { return 2; }
+}
+
+
+class AudacMTXSourceCard extends HTMLElement {
+  constructor() { super(); this.attachShadow({ mode: "open" }); this._config = {}; this._hass = null; }
+  static getConfigElement() { return document.createElement("audac-mtx-source-card-editor"); }
+  static getStubConfig() { return { entity: "", title: "", theme: "auto" }; }
+  setConfig(config) {
+    if (!config) throw new Error("Invalid configuration");
+    this._config = { entity: "", title: "", theme: "auto", ...config };
+    this._render();
+  }
+  set hass(hass) { this._hass = hass; this._render(); }
+  _render() {
+    if (!this.shadowRoot || !this._hass) return;
+    const entityId = this._config.entity;
+    const entity = entityId ? this._hass.states[entityId] : this._findEntity();
+    if (!entity) { this.shadowRoot.innerHTML = `<div style="padding:20px;opacity:0.5;">Entity nicht gefunden: ${entityId || '(keine konfiguriert)'}</div>`; return; }
+    const t = mtxThemeVars(mtxIsDark(this._config.theme));
+    const src = entity.attributes.source || "---";
+    const srcList = entity.attributes.source_list || [];
+    const name = this._config.title || entity.attributes.friendly_name || entityId;
+    const eid = entityId || this._findEntityId();
+    this.shadowRoot.innerHTML = `
+      <style>${mtxBaseStyles(t)}
+        .src-wrap { margin-top: 8px; }
+      </style>
+      <div class="mtx-card">
+        <div class="mtx-header">
+          <div class="mtx-header-icon">${mtxSvg('source', 22)}</div>
+          <div class="mtx-header-content">
+            <div class="mtx-header-title">${name}</div>
+            <div class="mtx-header-sub">Quelle</div>
+          </div>
+          <div class="mtx-header-badge">${src}</div>
+        </div>
+        <div class="src-wrap">
+          <div class="mtx-source-grid">
+            ${srcList.map(s => `<button class="mtx-source-btn ${s === src ? 'active' : ''}" data-source="${eid}" data-value="${s}">${s}</button>`).join("")}
+          </div>
+        </div>
+      </div>
+    `;
+    this.shadowRoot.querySelectorAll("[data-source]").forEach(el => {
+      el.addEventListener("click", () => { this._hass.callService("media_player", "select_source", { entity_id: eid, source: el.dataset.value }); });
+    });
+  }
+  _findEntity() { const id = this._findEntityId(); return id ? this._hass.states[id] : null; }
+  _findEntityId() { return this._config.entity || mtxAutoDiscover(this._hass)[0] || ""; }
+  getCardSize() { return 2; }
+}
+
+
+class AudacMTXBassCard extends HTMLElement {
+  constructor() { super(); this.attachShadow({ mode: "open" }); this._config = {}; this._hass = null; }
+  static getConfigElement() { return document.createElement("audac-mtx-bass-card-editor"); }
+  static getStubConfig() { return { entity: "", title: "", theme: "auto" }; }
+  setConfig(config) {
+    if (!config) throw new Error("Invalid configuration");
+    this._config = { entity: "", title: "", theme: "auto", ...config };
+    this._render();
+  }
+  set hass(hass) { this._hass = hass; this._render(); }
+  _render() {
+    if (!this.shadowRoot || !this._hass) return;
+    const entityId = this._config.entity;
+    const entity = entityId ? this._hass.states[entityId] : this._findEntity();
+    if (!entity) { this.shadowRoot.innerHTML = `<div style="padding:20px;opacity:0.5;">Entity nicht gefunden: ${entityId || '(keine konfiguriert)'}</div>`; return; }
+    const t = mtxThemeVars(mtxIsDark(this._config.theme));
+    const bass = entity.attributes.bass;
+    const bassRaw = entity.attributes.bass_raw;
+    const name = this._config.title || entity.attributes.friendly_name || entityId;
+    const eid = entityId || this._findEntityId();
+    const sliderVal = bassRaw != null ? bassRaw : 7;
+    this.shadowRoot.innerHTML = `
+      <style>${mtxBaseStyles(t)}
+        .bass-row { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+      </style>
+      <div class="mtx-card">
+        <div class="mtx-header">
+          <div class="mtx-header-icon">${mtxSvg('equalizer', 22)}</div>
+          <div class="mtx-header-content">
+            <div class="mtx-header-title">${name}</div>
+            <div class="mtx-header-sub">Bass</div>
+          </div>
+          <div class="mtx-header-badge">${bass != null ? (bass > 0 ? '+' : '') + bass + ' dB' : '---'}</div>
+        </div>
+        <div class="bass-row">
+          <span class="mtx-val" style="min-width:36px;text-align:left;">-14</span>
+          <div class="mtx-slider-wrap">
+            <input type="range" class="mtx-slider" min="0" max="14" step="1" value="${sliderVal}" data-bass="${eid}" />
+            <div class="mtx-slider-fill" style="width: ${(sliderVal / 14) * 100}%"></div>
+          </div>
+          <span class="mtx-val">+14</span>
+        </div>
+      </div>
+    `;
+    this.shadowRoot.querySelectorAll("[data-bass]").forEach(el => {
+      el.addEventListener("input", e => {
+        const fill = el.closest('.mtx-slider-wrap')?.querySelector('.mtx-slider-fill');
+        if (fill) fill.style.width = (parseInt(e.target.value) / 14 * 100) + '%';
+      });
+      el.addEventListener("change", e => {
+        this._hass.callService("media_player", "set_bass", { entity_id: eid, bass: parseInt(e.target.value) });
+      });
+    });
+  }
+  _findEntity() { const id = this._findEntityId(); return id ? this._hass.states[id] : null; }
+  _findEntityId() { return this._config.entity || mtxAutoDiscover(this._hass)[0] || ""; }
+  getCardSize() { return 2; }
+}
+
+
+class AudacMTXTrebleCard extends HTMLElement {
+  constructor() { super(); this.attachShadow({ mode: "open" }); this._config = {}; this._hass = null; }
+  static getConfigElement() { return document.createElement("audac-mtx-treble-card-editor"); }
+  static getStubConfig() { return { entity: "", title: "", theme: "auto" }; }
+  setConfig(config) {
+    if (!config) throw new Error("Invalid configuration");
+    this._config = { entity: "", title: "", theme: "auto", ...config };
+    this._render();
+  }
+  set hass(hass) { this._hass = hass; this._render(); }
+  _render() {
+    if (!this.shadowRoot || !this._hass) return;
+    const entityId = this._config.entity;
+    const entity = entityId ? this._hass.states[entityId] : this._findEntity();
+    if (!entity) { this.shadowRoot.innerHTML = `<div style="padding:20px;opacity:0.5;">Entity nicht gefunden: ${entityId || '(keine konfiguriert)'}</div>`; return; }
+    const t = mtxThemeVars(mtxIsDark(this._config.theme));
+    const treble = entity.attributes.treble;
+    const trebleRaw = entity.attributes.treble_raw;
+    const name = this._config.title || entity.attributes.friendly_name || entityId;
+    const eid = entityId || this._findEntityId();
+    const sliderVal = trebleRaw != null ? trebleRaw : 7;
+    this.shadowRoot.innerHTML = `
+      <style>${mtxBaseStyles(t)}
+        .treble-row { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+      </style>
+      <div class="mtx-card">
+        <div class="mtx-header">
+          <div class="mtx-header-icon">${mtxSvg('equalizer', 22)}</div>
+          <div class="mtx-header-content">
+            <div class="mtx-header-title">${name}</div>
+            <div class="mtx-header-sub">H\u00f6hen</div>
+          </div>
+          <div class="mtx-header-badge">${treble != null ? (treble > 0 ? '+' : '') + treble + ' dB' : '---'}</div>
+        </div>
+        <div class="treble-row">
+          <span class="mtx-val" style="min-width:36px;text-align:left;">-14</span>
+          <div class="mtx-slider-wrap">
+            <input type="range" class="mtx-slider" min="0" max="14" step="1" value="${sliderVal}" data-treble="${eid}" />
+            <div class="mtx-slider-fill" style="width: ${(sliderVal / 14) * 100}%"></div>
+          </div>
+          <span class="mtx-val">+14</span>
+        </div>
+      </div>
+    `;
+    this.shadowRoot.querySelectorAll("[data-treble]").forEach(el => {
+      el.addEventListener("input", e => {
+        const fill = el.closest('.mtx-slider-wrap')?.querySelector('.mtx-slider-fill');
+        if (fill) fill.style.width = (parseInt(e.target.value) / 14 * 100) + '%';
+      });
+      el.addEventListener("change", e => {
+        this._hass.callService("media_player", "set_treble", { entity_id: eid, treble: parseInt(e.target.value) });
+      });
+    });
+  }
+  _findEntity() { const id = this._findEntityId(); return id ? this._hass.states[id] : null; }
+  _findEntityId() { return this._config.entity || mtxAutoDiscover(this._hass)[0] || ""; }
+  getCardSize() { return 2; }
+}
+
+
+class AudacMTXSingleEditor extends HTMLElement {
+  constructor() { super(); this.attachShadow({ mode: "open" }); this._config = {}; }
+  setConfig(config) { this._config = { ...config }; this._render(); }
+  _render() {
+    this.shadowRoot.innerHTML = `
+      <style>${singleCardEditorStyles()}</style>
+      <div class="editor">
         <div class="field">
-          <label>Titel</label>
-          <input type="text" id="title" value="${this._config.title || 'Audac MTX'}" />
+          <label>Entity</label>
+          <input type="text" id="entity" value="${this._config.entity || ''}" placeholder="media_player.audac_mtx_zone_1" />
+          <div class="hint">Leer lassen f\u00fcr automatische Erkennung</div>
+        </div>
+        <div class="field">
+          <label>Titel (optional)</label>
+          <input type="text" id="title" value="${this._config.title || ''}" placeholder="Automatisch vom Entity" />
         </div>
         <div class="field">
           <label>Design</label>
@@ -635,107 +715,36 @@ class AudacMTXCardEditor extends HTMLElement {
             <option value="light" ${this._config.theme === 'light' ? 'selected' : ''}>Hell</option>
           </select>
         </div>
-        <div class="checkbox-field">
-          <input type="checkbox" id="show_source" ${this._config.show_source !== false ? 'checked' : ''} />
-          <label for="show_source">Quellenauswahl anzeigen</label>
-        </div>
-        <div class="checkbox-field">
-          <input type="checkbox" id="show_bass_treble" ${this._config.show_bass_treble !== false ? 'checked' : ''} />
-          <label for="show_bass_treble">Bass / Höhen anzeigen</label>
-        </div>
-
-        <div class="section-title">Zonen</div>
-        <p class="hint">Leer lassen für automatische Erkennung aller Audac MTX Media Player Entities.</p>
-        ${this._renderZoneRows()}
-        <button class="btn-add" id="add-zone">+ Zone hinzufügen</button>
       </div>
     `;
-
-    this.shadowRoot.getElementById("title").addEventListener("change", (e) => { this._config.title = e.target.value; this._fireChanged(); });
-    this.shadowRoot.getElementById("theme").addEventListener("change", (e) => { this._config.theme = e.target.value; this._fireChanged(); });
-    this.shadowRoot.getElementById("show_source").addEventListener("change", (e) => { this._config.show_source = e.target.checked; this._fireChanged(); });
-    this.shadowRoot.getElementById("show_bass_treble").addEventListener("change", (e) => { this._config.show_bass_treble = e.target.checked; this._fireChanged(); });
-    this.shadowRoot.getElementById("add-zone").addEventListener("click", () => {
-      if (!this._config.zones) this._config.zones = [];
-      this._config.zones.push({ entity: "", name: "" });
-      this._render();
-    });
-    this.shadowRoot.querySelectorAll("[data-zone-entity]").forEach((el) => {
-      el.addEventListener("change", (e) => {
-        const idx = parseInt(el.dataset.zoneEntity);
-        this._ensureZone(idx);
-        if (typeof this._config.zones[idx] === "string") {
-          this._config.zones[idx] = { entity: e.target.value.trim(), name: "" };
-        } else {
-          this._config.zones[idx].entity = e.target.value.trim();
-        }
-        this._fireChanged();
-      });
-    });
-    this.shadowRoot.querySelectorAll("[data-zone-name]").forEach((el) => {
-      el.addEventListener("change", (e) => {
-        const idx = parseInt(el.dataset.zoneName);
-        this._ensureZone(idx);
-        if (typeof this._config.zones[idx] === "string") {
-          this._config.zones[idx] = { entity: this._config.zones[idx], name: e.target.value.trim() };
-        } else {
-          this._config.zones[idx].name = e.target.value.trim();
-        }
-        this._fireChanged();
-      });
-    });
-    this.shadowRoot.querySelectorAll("[data-zone-remove]").forEach((el) => {
-      el.addEventListener("click", () => {
-        this._config.zones.splice(parseInt(el.dataset.zoneRemove), 1);
-        this._fireChanged();
-        this._render();
-      });
-    });
+    this.shadowRoot.getElementById("entity").addEventListener("change", e => { this._config.entity = e.target.value.trim(); this._fire(); });
+    this.shadowRoot.getElementById("title").addEventListener("change", e => { this._config.title = e.target.value.trim(); this._fire(); });
+    this.shadowRoot.getElementById("theme").addEventListener("change", e => { this._config.theme = e.target.value; this._fire(); });
   }
-
-  _ensureZone(idx) {
-    if (!this._config.zones) this._config.zones = [];
-    while (this._config.zones.length <= idx) {
-      this._config.zones.push({ entity: "", name: "" });
-    }
-  }
-
-  _renderZoneRows() {
-    const zones = this._config.zones || [];
-    if (zones.length === 0) return '<p class="hint">Keine Zonen konfiguriert &ndash; automatische Erkennung aktiv.</p>';
-    return zones.map((z, i) => {
-      const entity = typeof z === "string" ? z : (z.entity || "");
-      const name = typeof z === "object" ? (z.name || "") : "";
-      return `
-        <div class="zone-row">
-          <input type="text" placeholder="media_player.audac_mtx_zone_${i+1}" value="${entity}" data-zone-entity="${i}" />
-          <input type="text" placeholder="Anzeigename" value="${name}" data-zone-name="${i}" style="max-width:140px;" />
-          <button class="btn-remove" data-zone-remove="${i}">✕</button>
-        </div>
-      `;
-    }).join("");
-  }
-
-  _fireChanged() {
-    this.dispatchEvent(new CustomEvent("config-changed", {
-      detail: { config: this._config },
-      bubbles: true,
-      composed: true,
-    }));
-  }
+  _fire() { this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: this._config }, bubbles: true, composed: true })); }
 }
+
 
 customElements.define("audac-mtx-card", AudacMTXCard);
 customElements.define("audac-mtx-card-editor", AudacMTXCardEditor);
+customElements.define("audac-mtx-volume-card", AudacMTXVolumeCard);
+customElements.define("audac-mtx-source-card", AudacMTXSourceCard);
+customElements.define("audac-mtx-bass-card", AudacMTXBassCard);
+customElements.define("audac-mtx-treble-card", AudacMTXTrebleCard);
+
+customElements.define("audac-mtx-volume-card-editor", class extends AudacMTXSingleEditor {});
+customElements.define("audac-mtx-source-card-editor", class extends AudacMTXSingleEditor {});
+customElements.define("audac-mtx-bass-card-editor", class extends AudacMTXSingleEditor {});
+customElements.define("audac-mtx-treble-card-editor", class extends AudacMTXSingleEditor {});
 
 window.customCards = window.customCards || [];
-window.customCards.push({
-  type: "audac-mtx-card",
-  name: "Audac MTX Card",
-  description: "Steuerung für Audac MTX Audio-Matrizen (MTX48/MTX88)",
-  preview: true,
-  documentationURL: "https://github.com/tuldener/Audac-Mtx-Control",
-});
+window.customCards.push(
+  { type: "audac-mtx-card", name: "Audac MTX", description: "Alle Zonen mit Lautst\u00e4rke, Quelle, Bass & H\u00f6hen", preview: true, documentationURL: "https://github.com/tuldener/Audac-Mtx-Control" },
+  { type: "audac-mtx-volume-card", name: "Audac MTX Lautst\u00e4rke", description: "Lautst\u00e4rke-Regler f\u00fcr eine einzelne Zone", preview: true },
+  { type: "audac-mtx-source-card", name: "Audac MTX Quelle", description: "Quellenauswahl f\u00fcr eine einzelne Zone", preview: true },
+  { type: "audac-mtx-bass-card", name: "Audac MTX Bass", description: "Bass-Regler f\u00fcr eine einzelne Zone", preview: true },
+  { type: "audac-mtx-treble-card", name: "Audac MTX H\u00f6hen", description: "H\u00f6hen-Regler f\u00fcr eine einzelne Zone", preview: true },
+);
 
 console.info(
   `%c AUDAC-MTX-CARD %c v${CARD_VERSION} `,

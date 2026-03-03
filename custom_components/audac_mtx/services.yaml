@@ -1,0 +1,37 @@
+set_bass:
+  name: Set Bass
+  description: Set the bass level for an Audac MTX zone.
+  target:
+    entity:
+      integration: audac_mtx
+      domain: media_player
+  fields:
+    bass:
+      name: Bass
+      description: Bass level (0-14, where 7 is neutral/0dB)
+      required: true
+      selector:
+        number:
+          min: 0
+          max: 14
+          step: 1
+          mode: slider
+
+set_treble:
+  name: Set Treble
+  description: Set the treble level for an Audac MTX zone.
+  target:
+    entity:
+      integration: audac_mtx
+      domain: media_player
+  fields:
+    treble:
+      name: Treble
+      description: Treble level (0-14, where 7 is neutral/0dB)
+      required: true
+      selector:
+        number:
+          min: 0
+          max: 14
+          step: 1
+          mode: slider

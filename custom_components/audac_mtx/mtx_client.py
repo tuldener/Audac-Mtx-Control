@@ -77,9 +77,15 @@ class MTXClient:
     def _build_command(self, command: str, argument: str = "0") -> bytes:
         return f"#|X001|{self._source}|{command}|{argument}|U|\r\n".encode()
 
-    async def _read_response(self, timeout: float = 1.5) -> str:
+    @staticmethod
+    def _expected_response_cmd(command: str) -> str:
+        if command.startswith("G"):
+            return command[1:]
+        return command
+
+    async def _read_response(self, expected_cmd: str, timeout: float = 2.0) -> str:
         lines_read = 0
-        while lines_read < 15:
+        while lines_read < 20:
             try:
                 line_bytes = await asyncio.wait_for(
                     self._reader.readline(),
@@ -97,11 +103,20 @@ class MTXClient:
                     continue
 
                 parts = line.split("|")
-                if len(parts) >= 4 and parts[1].strip() == "ALL":
-                    _LOGGER.debug("Skipping broadcast update: %s", line[:80])
+                if len(parts) < 5:
                     continue
 
-                return line
+                if parts[1].strip() == "ALL":
+                    continue
+
+                resp_cmd = parts[3].strip()
+                if resp_cmd == expected_cmd:
+                    return line
+
+                _LOGGER.debug(
+                    "Skipping mismatched response: got '%s', expected '%s': %s",
+                    resp_cmd, expected_cmd, line[:80],
+                )
 
             except asyncio.TimeoutError:
                 break
@@ -109,6 +124,8 @@ class MTXClient:
         return ""
 
     async def _send_and_receive(self, command: str, argument: str = "0") -> str:
+        expected_cmd = self._expected_response_cmd(command)
+
         async with self._lock:
             for attempt in range(MAX_RETRIES + 1):
                 try:
@@ -124,7 +141,7 @@ class MTXClient:
                     self._writer.write(raw)
                     await self._writer.drain()
 
-                    response = await self._read_response(timeout=1.5)
+                    response = await self._read_response(expected_cmd, timeout=2.0)
 
                     if not response:
                         if attempt < MAX_RETRIES:
@@ -146,34 +163,25 @@ class MTXClient:
         return ""
 
     @staticmethod
-    def _parse_response(response: str) -> tuple[str, str]:
+    def _get_data_field(response: str) -> str:
         if not response:
-            return ("", "")
+            return ""
         parts = response.split("|")
         if len(parts) >= 5:
-            cmd = parts[3].strip()
-            data = parts[4].strip()
-            return (cmd, data)
-        return ("", "")
+            return parts[4].strip()
+        return ""
 
     @staticmethod
     def _is_success(response: str) -> bool:
         if not response:
             return False
-        _, data = MTXClient._parse_response(response)
-        return data == "+"
+        return MTXClient._get_data_field(response) == "+"
 
     async def get_zone_info(self, zone: int) -> dict[str, Any]:
         resp = await self._send_and_receive(f"GZI0{zone}")
-        cmd, data = self._parse_response(resp)
+        data = self._get_data_field(resp)
 
         if not data or data == "+":
-            _LOGGER.debug("No data for zone %d: cmd=%s data=%s", zone, cmd, data)
-            return {}
-
-        expected_cmd = f"ZI0{zone}"
-        if cmd and cmd != expected_cmd:
-            _LOGGER.warning("Zone %d: expected cmd %s, got %s", zone, expected_cmd, cmd)
             return {}
 
         values = data.split("^")
@@ -206,12 +214,16 @@ class MTXClient:
     async def get_all_zones(self, zones_count: int = 8) -> dict[int, dict[str, Any]]:
         zones: dict[int, dict[str, Any]] = {}
 
-        volumes = await self._get_bulk("GVALL", "VALL", zones_count)
+        volumes = await self._get_bulk("GVALL", zones_count)
         await asyncio.sleep(INTER_COMMAND_DELAY)
-        routings = await self._get_bulk("GRALL", "RALL", zones_count)
+        routings = await self._get_bulk("GRALL", zones_count)
         await asyncio.sleep(INTER_COMMAND_DELAY)
-        mutes = await self._get_bulk("GMALL", "MALL", zones_count)
+        mutes = await self._get_bulk("GMALL", zones_count)
         await asyncio.sleep(INTER_COMMAND_DELAY)
+
+        if not volumes and not routings and not mutes:
+            _LOGGER.warning("No bulk data received, falling back to per-zone queries")
+            return await self._get_all_zones_individual(zones_count)
 
         for zone in range(1, zones_count + 1):
             zones[zone] = {
@@ -228,13 +240,13 @@ class MTXClient:
 
         for zone in range(1, zones_count + 1):
             try:
-                bass = await self._get_single(f"GB0{zone}", f"B0{zone}")
+                bass = await self._get_single_value(f"GB0{zone}")
                 if bass is not None:
                     zones[zone]["bass"] = bass
                     zones[zone]["bass_db"] = BASS_TREBLE_MAP.get(bass, 0)
                 await asyncio.sleep(INTER_COMMAND_DELAY)
 
-                treble = await self._get_single(f"GT0{zone}", f"T0{zone}")
+                treble = await self._get_single_value(f"GT0{zone}")
                 if treble is not None:
                     zones[zone]["treble"] = treble
                     zones[zone]["treble_db"] = BASS_TREBLE_MAP.get(treble, 0)
@@ -246,12 +258,26 @@ class MTXClient:
 
         return zones
 
-    async def _get_bulk(self, command: str, expected_cmd: str, zones_count: int) -> dict[int, int]:
-        resp = await self._send_and_receive(command)
-        cmd, data = self._parse_response(resp)
+    async def _get_all_zones_individual(self, zones_count: int) -> dict[int, dict[str, Any]]:
+        zones = {}
+        for zone in range(1, zones_count + 1):
+            try:
+                info = await self.get_zone_info(zone)
+                if info:
+                    zones[zone] = info
+            except ConnectionError:
+                raise
+            except Exception as err:
+                _LOGGER.warning("Failed to get info for zone %d: %s", zone, err)
+            await asyncio.sleep(INTER_COMMAND_DELAY)
+        return zones
 
-        if not data:
-            _LOGGER.warning("No response for %s", command)
+    async def _get_bulk(self, command: str, zones_count: int) -> dict[int, int]:
+        resp = await self._send_and_receive(command)
+        data = self._get_data_field(resp)
+
+        if not data or data == "+":
+            _LOGGER.warning("No data for bulk command %s", command)
             return {}
 
         values = data.split("^")
@@ -267,9 +293,9 @@ class MTXClient:
 
         return result
 
-    async def _get_single(self, command: str, expected_cmd: str) -> int | None:
+    async def _get_single_value(self, command: str) -> int | None:
         resp = await self._send_and_receive(command)
-        cmd, data = self._parse_response(resp)
+        data = self._get_data_field(resp)
 
         if not data or data == "+":
             return None
@@ -317,5 +343,5 @@ class MTXClient:
 
     async def get_version(self) -> str:
         resp = await self._send_and_receive("GSV")
-        _, data = self._parse_response(resp)
+        data = self._get_data_field(resp)
         return data if data and data != "+" else "Unknown"

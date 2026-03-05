@@ -1,4 +1,4 @@
-const CARD_VERSION = "1.7.1";
+const CARD_VERSION = "1.7.2";
 
 /** Escapes HTML special characters to prevent XSS when injecting user-defined strings. */
 function mtxEscape(str) {
@@ -57,6 +57,8 @@ function mtxThemeVars(isDark, accentHex) {
   const accent = accentHex || "#7c6bf0";
   const rgb = mtxHexToRgb(accent);
   return {
+    volBgStart: isDark ? `rgba(${rgb}, 0.38)` : `rgba(${rgb}, 0.26)`,
+    volBgMid:   isDark ? `rgba(${rgb}, 0.14)` : `rgba(${rgb}, 0.09)`,
     bg: isDark ? "rgba(30, 33, 40, 0.95)" : "rgba(255, 255, 255, 0.95)",
     cardBg: isDark ? "rgba(40, 44, 52, 0.8)" : "rgba(245, 247, 250, 0.8)",
     cardBgHover: isDark ? "rgba(50, 55, 65, 0.9)" : "rgba(235, 238, 245, 0.9)",
@@ -203,6 +205,13 @@ class AudacMTXCard extends HTMLElement {
     this._expanded = {};
     this._prevStates = {};
     this._rendered = false;
+  }
+
+  connectedCallback() {
+    // Re-render if hass is already available (handles late connection)
+    if (this._hass && !this._rendered) {
+      this._render();
+    }
   }
 
   static getConfigElement() {
@@ -416,8 +425,8 @@ class AudacMTXCard extends HTMLElement {
         .zone-vol-bg {
           position: absolute; top: 0; left: 0; height: 100%;
           background: linear-gradient(90deg,
-            ${t.isDark ? `rgba(${mtxHexToRgb(t.accent)}, 0.38)` : `rgba(${mtxHexToRgb(t.accent)}, 0.26)`} 0%,
-            ${t.isDark ? `rgba(${mtxHexToRgb(t.accent)}, 0.14)` : `rgba(${mtxHexToRgb(t.accent)}, 0.09)`} 70%,
+            ${t.volBgStart} 0%,
+            ${t.volBgMid} 70%,
             transparent 100%);
           transition: width 0.5s cubic-bezier(0.25,0.1,0.25,1); pointer-events: none;
         }
@@ -1079,8 +1088,8 @@ class AudacMTXMoreInfo extends HTMLElement {
         .zone-vol-bg {
           position: absolute; top: 0; left: 0; height: 100%;
           background: linear-gradient(90deg,
-            ${t.isDark ? `rgba(${mtxHexToRgb(t.accent)}, 0.38)` : `rgba(${mtxHexToRgb(t.accent)}, 0.26)`} 0%,
-            ${t.isDark ? `rgba(${mtxHexToRgb(t.accent)}, 0.14)` : `rgba(${mtxHexToRgb(t.accent)}, 0.09)`} 70%,
+            ${t.volBgStart} 0%,
+            ${t.volBgMid} 70%,
             transparent 100%);
           transition: width 0.5s cubic-bezier(0.25,0.1,0.25,1); pointer-events: none;
         }
@@ -1359,6 +1368,14 @@ window.customCards.push(
 })();
 
 const _lastAccent = "#7c6bf0"; // updated at runtime
+// Register cards with HA card picker and pre-loader
+window.customCards = window.customCards || [];
+["audac-mtx-card", "audac-mtx-more-info", "audac-mtx-bass-card", "audac-mtx-treble-card"].forEach(type => {
+  if (!window.customCards.find(c => c.type === type)) {
+    window.customCards.push({ type, name: "Audac MTX", description: "Audac MTX audio matrix card", preview: true });
+  }
+});
+
 console.info(
   `%c AUDAC-MTX-CARD %c v${CARD_VERSION} `,
   `color: white; background: ${_lastAccent || "#7c6bf0"}; font-weight: 700; padding: 2px 6px; border-radius: 4px 0 0 4px;`,

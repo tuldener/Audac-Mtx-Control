@@ -1,4 +1,4 @@
-const CARD_VERSION = "1.4.0";
+const CARD_VERSION = "1.5.0";
 
 /** Escapes HTML special characters to prevent XSS when injecting user-defined strings. */
 function mtxEscape(str) {
@@ -230,12 +230,14 @@ class AudacMTXCard extends HTMLElement {
   _toggleExpand(entityId) {
     const wasExpanded = this._expanded[entityId];
     this._expanded[entityId] = !wasExpanded;
-    // Immediately refresh entity state when opening a zone
-    if (!wasExpanded && this._hass) {
-      this._hass.callService("homeassistant", "update_entity", { entity_id: entityId })
-        .catch(() => {});
-    }
     this._render();
+    // Refresh entity state after expand animation completes (avoids flicker)
+    if (!wasExpanded && this._hass) {
+      setTimeout(() => {
+        this._hass.callService("homeassistant", "update_entity", { entity_id: entityId })
+          .catch(() => {});
+      }, 320);
+    }
   }
 
   async _callService(domain, service, data) { if (this._hass) await this._hass.callService(domain, service, data); }
@@ -379,10 +381,30 @@ class AudacMTXCard extends HTMLElement {
             ${srcList.map(s => `<button class="mtx-source-btn ${s === src ? 'active' : ''}" data-source="${z.entityId}" data-value="${mtxEscape(s)}">${mtxEscape(s)}</button>`).join("")}
           </div>
         </div>` : ''}
-        ${this._config.show_bass_treble && (bass != null || treble != null) ? `
+        ${this._config.show_bass_treble ? `
         <div class="ctrl-section tone-section">
-          ${bass != null ? `<div class="tone-ctrl"><div class="mtx-label">Bass</div><div class="tone-val">${bass > 0 ? '+' : ''}${bass} dB</div></div>` : ''}
-          ${treble != null ? `<div class="tone-ctrl"><div class="mtx-label">H\u00f6hen</div><div class="tone-val">${treble > 0 ? '+' : ''}${treble} dB</div></div>` : ''}
+          ${bass != null ? `
+          <div class="tone-ctrl">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <div class="mtx-label">Bass</div>
+              <span class="tone-val">${bass > 0 ? '+' : ''}${bass} dB</span>
+            </div>
+            <div class="mtx-slider-wrap" style="height:28px;">
+              <input type="range" class="mtx-slider" min="0" max="14" step="1" value="${z.entity.attributes.bass_raw != null ? z.entity.attributes.bass_raw : 7}" data-bass="${z.entityId}" />
+              <div class="mtx-slider-fill" style="width:${((z.entity.attributes.bass_raw != null ? z.entity.attributes.bass_raw : 7) / 14) * 100}%;"></div>
+            </div>
+          </div>` : ''}
+          ${treble != null ? `
+          <div class="tone-ctrl">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <div class="mtx-label">H\u00f6hen</div>
+              <span class="tone-val">${treble > 0 ? '+' : ''}${treble} dB</span>
+            </div>
+            <div class="mtx-slider-wrap" style="height:28px;">
+              <input type="range" class="mtx-slider" min="0" max="14" step="1" value="${z.entity.attributes.treble_raw != null ? z.entity.attributes.treble_raw : 7}" data-treble="${z.entityId}" />
+              <div class="mtx-slider-fill" style="width:${((z.entity.attributes.treble_raw != null ? z.entity.attributes.treble_raw : 7) / 14) * 100}%;"></div>
+            </div>
+          </div>` : ''}
         </div>` : ''}
       </div>
     `;
@@ -392,7 +414,7 @@ class AudacMTXCard extends HTMLElement {
     const r = this.shadowRoot; if (!r) return;
     r.querySelectorAll("[data-toggle]").forEach(el => {
       el.addEventListener("click", e => {
-        if (e.target.closest("[data-mute]") || e.target.closest("[data-volume]") || e.target.closest("[data-source]")) return;
+        if (e.target.closest("[data-mute]") || e.target.closest("[data-volume]") || e.target.closest("[data-source]") || e.target.closest("[data-bass]") || e.target.closest("[data-treble]")) return;
         this._toggleExpand(el.dataset.toggle);
       });
     });
@@ -415,6 +437,36 @@ class AudacMTXCard extends HTMLElement {
     });
     r.querySelectorAll("[data-source]").forEach(el => {
       el.addEventListener("click", e => { e.stopPropagation(); this._callService("media_player", "select_source", { entity_id: el.dataset.source, source: el.dataset.value }); });
+    });
+    r.querySelectorAll("[data-bass]").forEach(el => {
+      el.addEventListener("input", e => {
+        const v = parseInt(e.target.value);
+        const fill = e.target.closest(".mtx-slider-wrap")?.querySelector(".mtx-slider-fill");
+        if (fill) fill.style.width = (v / 14 * 100) + "%";
+        const label = e.target.closest(".tone-ctrl")?.querySelector(".tone-val");
+        const db = (v - 7) * 2;
+        if (label) label.textContent = (db > 0 ? "+" : "") + db + " dB";
+      });
+      el._debouncedBassSet = el._debouncedBassSet || mtxDebounce((v) => {
+        this._callService("media_player", "set_bass", { entity_id: el.dataset.bass, bass: v });
+      }, 250);
+      el.addEventListener("change", e => { el._debouncedBassSet(parseInt(e.target.value)); });
+      el.addEventListener("click", e => e.stopPropagation());
+    });
+    r.querySelectorAll("[data-treble]").forEach(el => {
+      el.addEventListener("input", e => {
+        const v = parseInt(e.target.value);
+        const fill = e.target.closest(".mtx-slider-wrap")?.querySelector(".mtx-slider-fill");
+        if (fill) fill.style.width = (v / 14 * 100) + "%";
+        const label = e.target.closest(".tone-ctrl")?.querySelector(".tone-val");
+        const db = (v - 7) * 2;
+        if (label) label.textContent = (db > 0 ? "+" : "") + db + " dB";
+      });
+      el._debouncedTrebleSet = el._debouncedTrebleSet || mtxDebounce((v) => {
+        this._callService("media_player", "set_treble", { entity_id: el.dataset.treble, treble: v });
+      }, 250);
+      el.addEventListener("change", e => { el._debouncedTrebleSet(parseInt(e.target.value)); });
+      el.addEventListener("click", e => e.stopPropagation());
     });
   }
 
@@ -989,8 +1041,28 @@ class AudacMTXMoreInfo extends HTMLElement {
         </div>` : ''}
         ${bass != null || treble != null ? `
         <div class="ctrl-section tone-section">
-          ${bass != null ? `<div class="tone-ctrl"><div class="mtx-label">Bass</div><div class="tone-val">${bass > 0 ? '+' : ''}${bass} dB</div></div>` : ''}
-          ${treble != null ? `<div class="tone-ctrl"><div class="mtx-label">H\u00f6hen</div><div class="tone-val">${treble > 0 ? '+' : ''}${treble} dB</div></div>` : ''}
+          ${bass != null ? `
+          <div class="tone-ctrl">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <div class="mtx-label">Bass</div>
+              <span class="tone-val">${bass > 0 ? '+' : ''}${bass} dB</span>
+            </div>
+            <div class="mtx-slider-wrap" style="height:28px;">
+              <input type="range" class="mtx-slider" min="0" max="14" step="1" value="${z.entity.attributes.bass_raw != null ? z.entity.attributes.bass_raw : 7}" data-bass="${z.entityId}" />
+              <div class="mtx-slider-fill" style="width:${((z.entity.attributes.bass_raw != null ? z.entity.attributes.bass_raw : 7) / 14) * 100}%;"></div>
+            </div>
+          </div>` : ''}
+          ${treble != null ? `
+          <div class="tone-ctrl">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <div class="mtx-label">H\u00f6hen</div>
+              <span class="tone-val">${treble > 0 ? '+' : ''}${treble} dB</span>
+            </div>
+            <div class="mtx-slider-wrap" style="height:28px;">
+              <input type="range" class="mtx-slider" min="0" max="14" step="1" value="${z.entity.attributes.treble_raw != null ? z.entity.attributes.treble_raw : 7}" data-treble="${z.entityId}" />
+              <div class="mtx-slider-fill" style="width:${((z.entity.attributes.treble_raw != null ? z.entity.attributes.treble_raw : 7) / 14) * 100}%;"></div>
+            </div>
+          </div>` : ''}
         </div>` : ''}
       </div>
     `;
@@ -1000,7 +1072,7 @@ class AudacMTXMoreInfo extends HTMLElement {
     const r = this.shadowRoot; if (!r) return;
     r.querySelectorAll("[data-toggle]").forEach(el => {
       el.addEventListener("click", e => {
-        if (e.target.closest("[data-mute]") || e.target.closest("[data-volume]") || e.target.closest("[data-source]")) return;
+        if (e.target.closest("[data-mute]") || e.target.closest("[data-volume]") || e.target.closest("[data-source]") || e.target.closest("[data-bass]") || e.target.closest("[data-treble]")) return;
         this._toggleExpand(el.dataset.toggle);
       });
     });
@@ -1023,6 +1095,36 @@ class AudacMTXMoreInfo extends HTMLElement {
     });
     r.querySelectorAll("[data-source]").forEach(el => {
       el.addEventListener("click", e => { e.stopPropagation(); this._hass.callService("media_player", "select_source", { entity_id: el.dataset.source, source: el.dataset.value }); });
+    });
+    r.querySelectorAll("[data-bass]").forEach(el => {
+      el.addEventListener("input", e => {
+        const v = parseInt(e.target.value);
+        const fill = e.target.closest(".mtx-slider-wrap")?.querySelector(".mtx-slider-fill");
+        if (fill) fill.style.width = (v / 14 * 100) + "%";
+        const label = e.target.closest(".tone-ctrl")?.querySelector(".tone-val");
+        const db = (v - 7) * 2;
+        if (label) label.textContent = (db > 0 ? "+" : "") + db + " dB";
+      });
+      el._debouncedBassSet = el._debouncedBassSet || mtxDebounce((v) => {
+        this._hass.callService("media_player", "set_bass", { entity_id: el.dataset.bass, bass: v });
+      }, 250);
+      el.addEventListener("change", e => { el._debouncedBassSet(parseInt(e.target.value)); });
+      el.addEventListener("click", e => e.stopPropagation());
+    });
+    r.querySelectorAll("[data-treble]").forEach(el => {
+      el.addEventListener("input", e => {
+        const v = parseInt(e.target.value);
+        const fill = e.target.closest(".mtx-slider-wrap")?.querySelector(".mtx-slider-fill");
+        if (fill) fill.style.width = (v / 14 * 100) + "%";
+        const label = e.target.closest(".tone-ctrl")?.querySelector(".tone-val");
+        const db = (v - 7) * 2;
+        if (label) label.textContent = (db > 0 ? "+" : "") + db + " dB";
+      });
+      el._debouncedTrebleSet = el._debouncedTrebleSet || mtxDebounce((v) => {
+        this._hass.callService("media_player", "set_treble", { entity_id: el.dataset.treble, treble: v });
+      }, 250);
+      el.addEventListener("change", e => { el._debouncedTrebleSet(parseInt(e.target.value)); });
+      el.addEventListener("click", e => e.stopPropagation());
     });
   }
 }

@@ -32,6 +32,7 @@ class MTXClient:
         self._writer: asyncio.StreamWriter | None = None
         self._lock = asyncio.Lock()
         self._consecutive_failures = 0
+        self._bulk_supported: bool | None = None
 
     @property
     def host(self) -> str:
@@ -225,6 +226,9 @@ class MTXClient:
         }
 
     async def get_all_zones(self, zones_count: int = 8) -> dict[int, dict[str, Any]]:
+        if self._bulk_supported is False:
+            return await self._get_all_zones_individual(zones_count)
+
         zones: dict[int, dict[str, Any]] = {}
 
         volumes = await self._get_bulk("GVALL", zones_count)
@@ -235,8 +239,14 @@ class MTXClient:
         await asyncio.sleep(INTER_COMMAND_DELAY)
 
         if not volumes and not routings and not mutes:
-            _LOGGER.warning("No bulk data received, falling back to per-zone queries")
+            if self._bulk_supported is None:
+                _LOGGER.info(
+                    "MTX bulk commands not supported, switching to per-zone queries"
+                )
+                self._bulk_supported = False
             return await self._get_all_zones_individual(zones_count)
+
+        self._bulk_supported = True
 
         for zone in range(1, zones_count + 1):
             zones[zone] = {
@@ -290,7 +300,7 @@ class MTXClient:
         data = self._get_data_field(resp)
 
         if not data or data == "+":
-            _LOGGER.warning("No data for bulk command %s", command)
+            _LOGGER.debug("No data for bulk command %s, will fall back to per-zone", command)
             return {}
 
         values = data.split("^")

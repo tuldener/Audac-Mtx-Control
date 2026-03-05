@@ -9,10 +9,10 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN, INPUT_NAMES, CONF_MODEL, MODEL_MTX88, MODEL_ZONES, MODEL_NAMES, get_source_names
+from .const import DOMAIN, INPUT_NAMES, CONF_MODEL, MODEL_MTX88, MODEL_ZONES, get_source_names
 from .coordinator import AudacMTXCoordinator
+from .entity import AudacMTXBaseEntity
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -33,37 +33,17 @@ async def async_setup_entry(
     async_add_entities(entities)
 
 
-class AudacMTXSourceSelect(CoordinatorEntity[AudacMTXCoordinator], SelectEntity):
-    _attr_has_entity_name = True
+class AudacMTXSourceSelect(AudacMTXBaseEntity, SelectEntity):
     _attr_icon = "mdi:audio-input-rca"
     _attr_entity_category = EntityCategory.CONFIG
 
     def __init__(self, coordinator: AudacMTXCoordinator, zone: int, entry: ConfigEntry) -> None:
-        super().__init__(coordinator)
-        self._zone = zone
-        self._entry = entry
+        super().__init__(coordinator, zone, entry)
         zone_name = entry.options.get(f"zone_{zone}_name", f"Zone {zone}")
         self._attr_unique_id = f"{entry.entry_id}_zone_{zone}_source"
         self._attr_name = f"{zone_name} Source"
         self._source_names = get_source_names(entry.options)
         self._attr_options = list(self._source_names.values())
-        model = entry.data.get(CONF_MODEL, MODEL_MTX88)
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, entry.entry_id)},
-            "name": entry.data.get("name", "Audac MTX"),
-            "manufacturer": "Audac",
-            "model": MODEL_NAMES.get(model, "MTX"),
-        }
-
-    @property
-    def _zone_data(self) -> dict[str, Any]:
-        if self.coordinator.data and self._zone in self.coordinator.data:
-            return self.coordinator.data[self._zone]
-        return {}
-
-    @property
-    def available(self) -> bool:
-        return self.coordinator.last_update_success and bool(self._zone_data)
 
     @property
     def options(self) -> list[str]:

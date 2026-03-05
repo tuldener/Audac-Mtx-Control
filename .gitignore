@@ -5,6 +5,7 @@ __pycache__/
 .cache/
 .local/
 .agents/
+package-lock.json
 
 # Development only (Replit preview)
 preview/

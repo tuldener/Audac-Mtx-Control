@@ -1,5 +1,7 @@
 {
   "name": "Audac MTX",
   "render_readme": true,
-  "homeassistant": "2023.9.0"
+  "homeassistant": "2023.9.0",
+  "filename": "audac_mtx",
+  "content_in_root": false
 }

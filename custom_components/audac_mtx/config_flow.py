@@ -116,7 +116,9 @@ class AudacMTXOptionsFlow(config_entries.OptionsFlow):
         for input_id, default_label in INPUT_NAMES.items():
             current_label = current_options.get(f"source_{input_id}_name", default_label)
             schema_dict[vol.Optional(f"source_{input_id}_name", default=current_label)] = str
-            default_visible = current_options.get(f"source_{input_id}_visible", True)
+            # source_0 (Off) hidden by default; all others visible by default
+            default_visible = input_id != 0
+            default_visible = current_options.get(f"source_{input_id}_visible", default_visible)
             schema_dict[vol.Optional(f"source_{input_id}_visible", default=default_visible)] = bool
 
         return self.async_show_form(

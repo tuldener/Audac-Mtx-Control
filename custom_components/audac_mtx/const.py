@@ -29,8 +29,8 @@ INPUT_NAMES = {
     4: "Line 4",
     5: "Line 5",
     6: "Line 6",
-    7: "WLI/MWX65",
-    8: "WMI",
+    7: "Wall Panel (WLI/MWX65)",
+    8: "Wall Panel (WMI)",
 }
 
 BASS_TREBLE_MAP = {
@@ -58,7 +58,10 @@ VOLUME_MAX = 70
 def get_source_names(options: dict, visible_only: bool = True) -> dict[int, str]:
     result = {}
     for input_id, default_name in INPUT_NAMES.items():
-        if visible_only and not options.get(f"source_{input_id}_visible", True):
-            continue
+        if visible_only:
+            # source_0 (Off) is hidden by default; all others visible by default
+            default_visible = input_id != 0
+            if not options.get(f"source_{input_id}_visible", default_visible):
+                continue
         result[input_id] = options.get(f"source_{input_id}_name", default_name)
     return result

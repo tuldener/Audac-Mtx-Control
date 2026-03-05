@@ -20,6 +20,7 @@ _LOGGER = logging.getLogger(__name__)
 
 MAX_RETRIES = 1
 RECONNECT_DELAY = 1.0
+RECONNECT_MAX_DELAY = 30.0
 INTER_COMMAND_DELAY = 0.15
 
 
@@ -73,7 +74,10 @@ class MTXClient:
     async def _ensure_connected(self) -> None:
         if self._writer is None:
             if self._consecutive_failures > 0:
-                delay = min(RECONNECT_DELAY * self._consecutive_failures, 10.0)
+                delay = min(
+                    RECONNECT_DELAY * (2 ** (self._consecutive_failures - 1)),
+                    RECONNECT_MAX_DELAY,
+                )
                 await asyncio.sleep(delay)
             await self.connect()
 
@@ -362,15 +366,25 @@ class MTXClient:
         return self._is_success(resp)
 
     async def set_volume_up(self, zone: int) -> bool:
-        resp = await self._send_and_receive(f"SVU0{zone}")
+        resp = await self._send_and_receive(f"SVU0{zone}", "0")
         return self._is_success(resp)
 
     async def set_volume_down(self, zone: int) -> bool:
-        resp = await self._send_and_receive(f"SVD0{zone}")
+        resp = await self._send_and_receive(f"SVD0{zone}", "0")
         return self._is_success(resp)
 
     async def set_routing(self, zone: int, input_id: int) -> bool:
         resp = await self._send_and_receive(f"SR{zone}", str(input_id))
+        return self._is_success(resp)
+
+    async def set_routing_up(self, zone: int) -> bool:
+        """Cycle routing to the next enabled input (skips disabled inputs on device)."""
+        resp = await self._send_and_receive(f"SRU0{zone}", "0")
+        return self._is_success(resp)
+
+    async def set_routing_down(self, zone: int) -> bool:
+        """Cycle routing to the previous enabled input (skips disabled inputs on device)."""
+        resp = await self._send_and_receive(f"SRD0{zone}", "0")
         return self._is_success(resp)
 
     async def set_bass(self, zone: int, bass: int) -> bool:
@@ -388,10 +402,30 @@ class MTXClient:
         return self._is_success(resp)
 
     async def save(self) -> bool:
-        resp = await self._send_and_receive("SAVE")
+        resp = await self._send_and_receive("SAVE", "0")
+        return self._is_success(resp)
+
+    async def factory_reset(self) -> bool:
+        """Reset ALL zone and device settings to factory defaults. Use with extreme caution."""
+        resp = await self._send_and_receive("DEF", "0")
         return self._is_success(resp)
 
     async def get_version(self) -> str:
-        resp = await self._send_and_receive("GSV")
+        resp = await self._send_and_receive("GSV", "0")
         data = self._get_data_field(resp)
         return data if data and data != "+" else "Unknown"
+
+    async def get_zone_volume(self, zone: int) -> int | None:
+        """Get volume for a single zone using GV0x (0=max, 70=min)."""
+        return await self._get_single_value(f"GV0{zone}")
+
+    async def get_zone_routing(self, zone: int) -> int | None:
+        """Get routing (input) for a single zone using GR0x."""
+        return await self._get_single_value(f"GR0{zone}")
+
+    async def get_zone_mute(self, zone: int) -> bool | None:
+        """Get mute state for a single zone using GM0x."""
+        val = await self._get_single_value(f"GM0{zone}")
+        if val is None:
+            return None
+        return val != 0

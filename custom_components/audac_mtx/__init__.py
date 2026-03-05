@@ -56,7 +56,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     entry.async_on_unload(
         entry.add_update_listener(_async_update_options)
     )
-    entry.async_on_unload(coordinator.async_shutdown)
+    entry.async_on_unload(coordinator.async_shutdown)  # called automatically on unload
 
     return True
 
@@ -108,6 +108,6 @@ async def _async_update_options(hass: HomeAssistant, entry: ConfigEntry) -> None
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unload_ok:
-        coordinator = hass.data[DOMAIN].pop(entry.entry_id)
-        await coordinator.async_shutdown()
+        # coordinator.async_shutdown() is already registered via async_on_unload
+        hass.data[DOMAIN].pop(entry.entry_id, None)
     return unload_ok

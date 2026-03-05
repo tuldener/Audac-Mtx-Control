@@ -48,6 +48,16 @@ async def async_setup_entry(
         {vol.Required("treble"): vol.All(int, vol.Range(min=0, max=14))},
         "async_set_treble",
     )
+    platform.async_register_entity_service(
+        "routing_up",
+        {},
+        "async_routing_up",
+    )
+    platform.async_register_entity_service(
+        "routing_down",
+        {},
+        "async_routing_down",
+    )
 
 
 class AudacMTXZone(AudacMTXBaseEntity, MediaPlayerEntity):
@@ -143,4 +153,14 @@ class AudacMTXZone(AudacMTXBaseEntity, MediaPlayerEntity):
 
     async def async_set_treble(self, treble: int) -> None:
         await self.coordinator.client.set_treble(self._zone, treble)
+        await self.coordinator.async_request_refresh()
+
+    async def async_routing_up(self) -> None:
+        """Cycle to next available input source (skips disabled inputs on device)."""
+        await self.coordinator.client.set_routing_up(self._zone)
+        await self.coordinator.async_request_refresh()
+
+    async def async_routing_down(self) -> None:
+        """Cycle to previous available input source (skips disabled inputs on device)."""
+        await self.coordinator.client.set_routing_down(self._zone)
         await self.coordinator.async_request_refresh()

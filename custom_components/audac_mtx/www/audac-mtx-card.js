@@ -1,4 +1,23 @@
-const CARD_VERSION = "1.1.0";
+const CARD_VERSION = "1.2.0";
+
+/** Escapes HTML special characters to prevent XSS when injecting user-defined strings. */
+function mtxEscape(str) {
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+/** Returns a debounced version of fn that only fires after `wait` ms of silence. */
+function mtxDebounce(fn, wait = 300) {
+  let timer;
+  return function (...args) {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn.apply(this, args), wait);
+  };
+}
 
 const MTX_ICONS = {
   music: '<path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>',
@@ -267,7 +286,7 @@ class AudacMTXCard extends HTMLElement {
         <div class="mtx-header">
           <div class="mtx-header-icon">${mtxSvg('music', 24)}</div>
           <div class="mtx-header-content">
-            <h2 class="mtx-header-title">${this._config.title}</h2>
+            <h2 class="mtx-header-title">${mtxEscape(this._config.title)}</h2>
             <span class="mtx-header-sub">${zones.length} Zone${zones.length !== 1 ? 'n' : ''}</span>
           </div>
           <div class="mtx-header-badge">${activeCount}/${zones.length}</div>
@@ -294,8 +313,8 @@ class AudacMTXCard extends HTMLElement {
           <div class="zone-content">
             <div class="zone-icon ${active ? 'active' : ''}">${mtxSvg(muted ? 'speakerMuted' : 'speaker')}</div>
             <div class="zone-info">
-              <span class="zone-name">${z.name}</span>
-              <span class="zone-detail">${muted ? 'Stumm' : vol + '%'}${this._config.show_source && src !== '---' ? ' \u00b7 ' + src : ''}</span>
+              <span class="zone-name">${mtxEscape(z.name)}</span>
+              <span class="zone-detail">${muted ? 'Stumm' : vol + '%'}${this._config.show_source && src !== '---' ? ' \u00b7 ' + mtxEscape(src) : ''}</span>
             </div>
             <div class="zone-badge ${muted ? 'muted' : ''}">${muted ? 'MUTE' : vol + '%'}</div>
             <div class="zone-chevron ${exp ? 'rotated' : ''}">${mtxSvg('chevron', 20)}</div>
@@ -333,7 +352,7 @@ class AudacMTXCard extends HTMLElement {
         <div class="ctrl-section">
           <div class="mtx-label">${mtxSvg('source', 16)} Quelle</div>
           <div class="mtx-source-grid">
-            ${srcList.map(s => `<button class="mtx-source-btn ${s === src ? 'active' : ''}" data-source="${z.entityId}" data-value="${s}">${s}</button>`).join("")}
+            ${srcList.map(s => `<button class="mtx-source-btn ${s === src ? 'active' : ''}" data-source="${z.entityId}" data-value="${mtxEscape(s)}">${mtxEscape(s)}</button>`).join("")}
           </div>
         </div>` : ''}
         ${this._config.show_bass_treble && (bass != null || treble != null) ? `
@@ -364,7 +383,10 @@ class AudacMTXCard extends HTMLElement {
         const valSpan = e.target.closest('.vol-row').querySelector('.mtx-val');
         if (valSpan) valSpan.innerHTML = v + '%';
       });
-      el.addEventListener("change", e => { this._callService("media_player", "volume_set", { entity_id: el.dataset.volume, volume_level: parseInt(e.target.value) / 100 }); });
+      el._debouncedVolumeSet = el._debouncedVolumeSet || mtxDebounce((v) => {
+        this._callService("media_player", "volume_set", { entity_id: el.dataset.volume, volume_level: v / 100 });
+      }, 250);
+      el.addEventListener("change", e => { el._debouncedVolumeSet(parseInt(e.target.value)); });
       el.addEventListener("click", e => e.stopPropagation());
     });
     r.querySelectorAll("[data-source]").forEach(el => {
@@ -467,7 +489,7 @@ class AudacMTXVolumeCard extends HTMLElement {
     if (!this.shadowRoot || !this._hass) return;
     const entityId = this._config.entity;
     const entity = entityId ? this._hass.states[entityId] : this._findEntity();
-    if (!entity) { this.shadowRoot.innerHTML = `<div style="padding:20px;opacity:0.5;">Entity nicht gefunden: ${entityId || '(keine konfiguriert)'}</div>`; return; }
+    if (!entity) { this.shadowRoot.innerHTML = `<div style="padding:20px;opacity:0.5;">Entity nicht gefunden: ${mtxEscape(entityId || '(keine konfiguriert)')}</div>`; return; }
     const t = mtxThemeVars(mtxIsDark(this._config.theme));
     const vol = Math.round((entity.attributes.volume_level || 0) * 100);
     const muted = entity.attributes.is_volume_muted === true;
@@ -482,7 +504,7 @@ class AudacMTXVolumeCard extends HTMLElement {
         <div class="mtx-header">
           <div class="mtx-header-icon">${mtxSvg('speaker', 22)}</div>
           <div class="mtx-header-content">
-            <div class="mtx-header-title">${name}</div>
+            <div class="mtx-header-title">${mtxEscape(name)}</div>
             <div class="mtx-header-sub">Lautst\u00e4rke</div>
           </div>
           <div class="mtx-header-badge">${muted ? 'MUTE' : vol + '%'}</div>
@@ -514,7 +536,10 @@ class AudacMTXVolumeCard extends HTMLElement {
         const fill = r.querySelector('.mtx-slider-fill'); if (fill) fill.style.width = v + '%';
         const val = r.querySelector('.mtx-val'); if (val) val.innerHTML = v + '%';
       });
-      el.addEventListener("change", e => { this._hass.callService("media_player", "volume_set", { entity_id: eid, volume_level: parseInt(e.target.value) / 100 }); });
+      el._debouncedVolumeSet = el._debouncedVolumeSet || mtxDebounce((v) => {
+        this._hass.callService("media_player", "volume_set", { entity_id: eid, volume_level: v / 100 });
+      }, 250);
+      el.addEventListener("change", e => { el._debouncedVolumeSet(parseInt(e.target.value)); });
     });
   }
   getCardSize() { return 2; }
@@ -535,7 +560,7 @@ class AudacMTXSourceCard extends HTMLElement {
     if (!this.shadowRoot || !this._hass) return;
     const entityId = this._config.entity;
     const entity = entityId ? this._hass.states[entityId] : this._findEntity();
-    if (!entity) { this.shadowRoot.innerHTML = `<div style="padding:20px;opacity:0.5;">Entity nicht gefunden: ${entityId || '(keine konfiguriert)'}</div>`; return; }
+    if (!entity) { this.shadowRoot.innerHTML = `<div style="padding:20px;opacity:0.5;">Entity nicht gefunden: ${mtxEscape(entityId || '(keine konfiguriert)')}</div>`; return; }
     const t = mtxThemeVars(mtxIsDark(this._config.theme));
     const src = entity.attributes.source || "---";
     const srcList = entity.attributes.source_list || [];
@@ -549,14 +574,14 @@ class AudacMTXSourceCard extends HTMLElement {
         <div class="mtx-header">
           <div class="mtx-header-icon">${mtxSvg('source', 22)}</div>
           <div class="mtx-header-content">
-            <div class="mtx-header-title">${name}</div>
+            <div class="mtx-header-title">${mtxEscape(name)}</div>
             <div class="mtx-header-sub">Quelle</div>
           </div>
-          <div class="mtx-header-badge">${src}</div>
+          <div class="mtx-header-badge">${mtxEscape(src)}</div>
         </div>
         <div class="src-wrap">
           <div class="mtx-source-grid">
-            ${srcList.map(s => `<button class="mtx-source-btn ${s === src ? 'active' : ''}" data-source="${eid}" data-value="${s}">${s}</button>`).join("")}
+            ${srcList.map(s => `<button class="mtx-source-btn ${s === src ? 'active' : ''}" data-source="${eid}" data-value="${mtxEscape(s)}">${mtxEscape(s)}</button>`).join("")}
           </div>
         </div>
       </div>
@@ -585,7 +610,7 @@ class AudacMTXBassCard extends HTMLElement {
     if (!this.shadowRoot || !this._hass) return;
     const entityId = this._config.entity;
     const entity = entityId ? this._hass.states[entityId] : this._findEntity();
-    if (!entity) { this.shadowRoot.innerHTML = `<div style="padding:20px;opacity:0.5;">Entity nicht gefunden: ${entityId || '(keine konfiguriert)'}</div>`; return; }
+    if (!entity) { this.shadowRoot.innerHTML = `<div style="padding:20px;opacity:0.5;">Entity nicht gefunden: ${mtxEscape(entityId || '(keine konfiguriert)')}</div>`; return; }
     const t = mtxThemeVars(mtxIsDark(this._config.theme));
     const bass = entity.attributes.bass;
     const bassRaw = entity.attributes.bass_raw;
@@ -600,7 +625,7 @@ class AudacMTXBassCard extends HTMLElement {
         <div class="mtx-header">
           <div class="mtx-header-icon">${mtxSvg('equalizer', 22)}</div>
           <div class="mtx-header-content">
-            <div class="mtx-header-title">${name}</div>
+            <div class="mtx-header-title">${mtxEscape(name)}</div>
             <div class="mtx-header-sub">Bass</div>
           </div>
           <div class="mtx-header-badge">${bass != null ? (bass > 0 ? '+' : '') + bass + ' dB' : '---'}</div>
@@ -645,7 +670,7 @@ class AudacMTXTrebleCard extends HTMLElement {
     if (!this.shadowRoot || !this._hass) return;
     const entityId = this._config.entity;
     const entity = entityId ? this._hass.states[entityId] : this._findEntity();
-    if (!entity) { this.shadowRoot.innerHTML = `<div style="padding:20px;opacity:0.5;">Entity nicht gefunden: ${entityId || '(keine konfiguriert)'}</div>`; return; }
+    if (!entity) { this.shadowRoot.innerHTML = `<div style="padding:20px;opacity:0.5;">Entity nicht gefunden: ${mtxEscape(entityId || '(keine konfiguriert)')}</div>`; return; }
     const t = mtxThemeVars(mtxIsDark(this._config.theme));
     const treble = entity.attributes.treble;
     const trebleRaw = entity.attributes.treble_raw;
@@ -660,7 +685,7 @@ class AudacMTXTrebleCard extends HTMLElement {
         <div class="mtx-header">
           <div class="mtx-header-icon">${mtxSvg('equalizer', 22)}</div>
           <div class="mtx-header-content">
-            <div class="mtx-header-title">${name}</div>
+            <div class="mtx-header-title">${mtxEscape(name)}</div>
             <div class="mtx-header-sub">H\u00f6hen</div>
           </div>
           <div class="mtx-header-badge">${treble != null ? (treble > 0 ? '+' : '') + treble + ' dB' : '---'}</div>
@@ -864,8 +889,8 @@ class AudacMTXMoreInfo extends HTMLElement {
           <div class="zone-content">
             <div class="zone-icon ${active ? 'active' : ''}">${mtxSvg(muted ? 'speakerMuted' : 'speaker')}</div>
             <div class="zone-info">
-              <span class="zone-name">${z.name}</span>
-              <span class="zone-detail">${muted ? 'Stumm' : vol + '%'}${src !== '---' ? ' \u00b7 ' + src : ''}</span>
+              <span class="zone-name">${mtxEscape(z.name)}</span>
+              <span class="zone-detail">${muted ? 'Stumm' : vol + '%'}${src !== '---' ? ' \u00b7 ' + mtxEscape(src) : ''}</span>
             </div>
             <div class="zone-badge ${muted ? 'muted' : ''}">${muted ? 'MUTE' : vol + '%'}</div>
             <div class="zone-chevron ${exp ? 'rotated' : ''}">${mtxSvg('chevron', 20)}</div>
@@ -903,7 +928,7 @@ class AudacMTXMoreInfo extends HTMLElement {
         <div class="ctrl-section">
           <div class="mtx-label">${mtxSvg('source', 16)} Quelle</div>
           <div class="mtx-source-grid">
-            ${srcList.map(s => `<button class="mtx-source-btn ${s === src ? 'active' : ''}" data-source="${z.entityId}" data-value="${s}">${s}</button>`).join("")}
+            ${srcList.map(s => `<button class="mtx-source-btn ${s === src ? 'active' : ''}" data-source="${z.entityId}" data-value="${mtxEscape(s)}">${mtxEscape(s)}</button>`).join("")}
           </div>
         </div>` : ''}
         ${bass != null || treble != null ? `
@@ -934,7 +959,10 @@ class AudacMTXMoreInfo extends HTMLElement {
         const valSpan = e.target.closest('.vol-row')?.querySelector('.mtx-val');
         if (valSpan) valSpan.innerHTML = v + '%';
       });
-      el.addEventListener("change", e => { this._hass.callService("media_player", "volume_set", { entity_id: el.dataset.volume, volume_level: parseInt(e.target.value) / 100 }); });
+      el._debouncedVolumeSet = el._debouncedVolumeSet || mtxDebounce((v) => {
+        this._hass.callService("media_player", "volume_set", { entity_id: el.dataset.volume, volume_level: v / 100 });
+      }, 250);
+      el.addEventListener("change", e => { el._debouncedVolumeSet(parseInt(e.target.value)); });
       el.addEventListener("click", e => e.stopPropagation());
     });
     r.querySelectorAll("[data-source]").forEach(el => {

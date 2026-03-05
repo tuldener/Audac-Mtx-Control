@@ -1,6 +1,6 @@
 set_bass:
   name: Set Bass
-  description: Set the bass level for an Audac MTX zone.
+  description: Set the bass level for an Audac MTX zone (SB0x command).
   target:
     entity:
       integration: audac_mtx
@@ -8,7 +8,7 @@ set_bass:
   fields:
     bass:
       name: Bass
-      description: Bass level (0-14, where 7 is neutral/0dB)
+      description: "Bass level (0–14). 7 = neutral (0 dB), steps of 2 dB. Range: -14 dB (0) to +14 dB (14)."
       required: true
       selector:
         number:
@@ -19,7 +19,7 @@ set_bass:
 
 set_treble:
   name: Set Treble
-  description: Set the treble level for an Audac MTX zone.
+  description: Set the treble level for an Audac MTX zone (ST0x command).
   target:
     entity:
       integration: audac_mtx
@@ -27,7 +27,7 @@ set_treble:
   fields:
     treble:
       name: Treble
-      description: Treble level (0-14, where 7 is neutral/0dB)
+      description: "Treble level (0–14). 7 = neutral (0 dB), steps of 2 dB. Range: -14 dB (0) to +14 dB (14)."
       required: true
       selector:
         number:
@@ -35,3 +35,23 @@ set_treble:
           max: 14
           step: 1
           mode: slider
+
+routing_up:
+  name: Routing Up
+  description: >
+    Switch to the next available input source for a zone (SRU0x command).
+    Disabled inputs configured on the MTX device are automatically skipped.
+  target:
+    entity:
+      integration: audac_mtx
+      domain: media_player
+
+routing_down:
+  name: Routing Down
+  description: >
+    Switch to the previous available input source for a zone (SRD0x command).
+    Disabled inputs configured on the MTX device are automatically skipped.
+  target:
+    entity:
+      integration: audac_mtx
+      domain: media_player

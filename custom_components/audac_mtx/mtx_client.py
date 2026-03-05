@@ -20,7 +20,7 @@ _LOGGER = logging.getLogger(__name__)
 
 MAX_RETRIES = 1
 RECONNECT_DELAY = 1.0
-INTER_COMMAND_DELAY = 0.1
+INTER_COMMAND_DELAY = 0.15
 
 
 class MTXClient:
@@ -53,7 +53,8 @@ class MTXClient:
             self._consecutive_failures = 0
             self._bulk_supported = None
             _LOGGER.debug("Connected to MTX at %s:%s", self._host, self._port)
-            await asyncio.sleep(0.2)
+            await asyncio.sleep(0.3)
+            await self._flush_buffer()
         except Exception as err:
             self._reader = None
             self._writer = None
@@ -75,6 +76,21 @@ class MTXClient:
                 delay = min(RECONNECT_DELAY * self._consecutive_failures, 10.0)
                 await asyncio.sleep(delay)
             await self.connect()
+
+    async def _flush_buffer(self) -> None:
+        if self._reader is None:
+            return
+        flushed = b""
+        while True:
+            try:
+                chunk = await asyncio.wait_for(self._reader.read(4096), timeout=0.05)
+                if not chunk:
+                    break
+                flushed += chunk
+            except asyncio.TimeoutError:
+                break
+        if flushed:
+            _LOGGER.debug("MTX flushed %d bytes of stale data", len(flushed))
 
     def _build_command(self, command: str, argument: str = "0") -> bytes:
         return f"#|X001|{self._source}|{command}|{argument}|U|\r\n".encode()
@@ -103,10 +119,12 @@ class MTXClient:
                 if not chunk:
                     break
                 buffer += chunk
-                _LOGGER.debug("MTX raw recv chunk: %s", chunk[:200])
+                _LOGGER.debug("MTX raw recv chunk (%d bytes): %s", len(chunk), chunk[:200])
 
                 text = buffer.decode(errors="replace")
-                for line in text.replace("\r\n", "\n").replace("\r", "\n").split("\n"):
+                lines = text.replace("\r\n", "\n").replace("\r", "\n").split("\n")
+
+                for line in lines[:-1]:
                     line = line.strip()
                     if not line or not line.startswith("#|"):
                         continue
@@ -128,6 +146,12 @@ class MTXClient:
                         resp_cmd, expected_cmds, line[:80],
                     )
 
+                last_line = lines[-1]
+                if last_line and last_line.strip():
+                    buffer = last_line.encode()
+                else:
+                    buffer = b""
+
             except asyncio.TimeoutError:
                 continue
 
@@ -138,7 +162,7 @@ class MTXClient:
             )
         return ""
 
-    async def _send_and_receive(self, command: str, argument: str = "0") -> str:
+    async def _send_and_receive(self, command: str, argument: str = "0", timeout: float = 2.0) -> str:
         expected_cmds = self._expected_response_cmds(command)
 
         async with self._lock:
@@ -151,12 +175,14 @@ class MTXClient:
                         continue
                     raise
 
+                await self._flush_buffer()
+
                 raw = self._build_command(command, argument)
                 try:
                     self._writer.write(raw)
                     await self._writer.drain()
 
-                    response = await self._read_response(expected_cmds, timeout=2.0)
+                    response = await self._read_response(expected_cmds, timeout=timeout)
 
                     if not response:
                         if attempt < MAX_RETRIES:
@@ -297,7 +323,7 @@ class MTXClient:
         return zones
 
     async def _get_bulk(self, command: str, zones_count: int) -> dict[int, int]:
-        resp = await self._send_and_receive(command)
+        resp = await self._send_and_receive(command, timeout=3.0)
         data = self._get_data_field(resp)
 
         if not data or data == "+":

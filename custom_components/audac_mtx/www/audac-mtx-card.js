@@ -1,4 +1,4 @@
-const CARD_VERSION = "1.5.0";
+const CARD_VERSION = "1.6.0";
 
 /** Escapes HTML special characters to prevent XSS when injecting user-defined strings. */
 function mtxEscape(str) {
@@ -189,6 +189,8 @@ class AudacMTXCard extends HTMLElement {
     this._config = {};
     this._hass = null;
     this._expanded = {};
+    this._prevStates = {};
+    this._rendered = false;
   }
 
   static getConfigElement() {
@@ -202,12 +204,17 @@ class AudacMTXCard extends HTMLElement {
   setConfig(config) {
     if (!config) throw new Error("Invalid configuration");
     this._config = { title: "Audac MTX", zones: [], show_bass_treble: true, show_source: true, theme: "auto", accent_color: "", ...config };
+    this._rendered = false;
     this._render();
   }
 
   set hass(hass) {
     this._hass = hass;
-    this._render();
+    if (!this._rendered) {
+      this._render();
+      return;
+    }
+    this._updateExisting();
   }
 
   _getZones() {
@@ -230,22 +237,124 @@ class AudacMTXCard extends HTMLElement {
   _toggleExpand(entityId) {
     const wasExpanded = this._expanded[entityId];
     this._expanded[entityId] = !wasExpanded;
+    this._rendered = false;
     this._render();
-    // Refresh entity state after expand animation completes (avoids flicker)
     if (!wasExpanded && this._hass) {
       setTimeout(() => {
-        this._hass.callService("homeassistant", "update_entity", { entity_id: entityId })
-          .catch(() => {});
+        this._hass.callService("homeassistant", "update_entity", { entity_id: entityId }).catch(() => {});
       }, 320);
     }
   }
 
-  async _callService(domain, service, data) { if (this._hass) await this._hass.callService(domain, service, data); }
+  async _callService(domain, service, data) {
+    if (this._hass) await this._hass.callService(domain, service, data);
+  }
 
   _vol(z) { const v = z.entity.attributes.volume_level; return v == null ? 0 : Math.round(v * 100); }
   _muted(z) { return z.entity.attributes.is_volume_muted === true; }
   _src(z) { return z.entity.attributes.source || "---"; }
   _srcList(z) { return z.entity.attributes.source_list || []; }
+
+  // Smart update: only patch changed values without rebuilding the DOM
+  _updateExisting() {
+    const r = this.shadowRoot;
+    if (!r) return;
+    const zones = this._getZones();
+    const t = mtxThemeVars(mtxIsDark(this._config.theme), this._config.accent_color || "");
+
+    // Update header badge (active count)
+    const activeCount = zones.filter(z => !this._muted(z) && this._vol(z) > 0).length;
+    const badge = r.querySelector(".mtx-header-badge");
+    if (badge) badge.textContent = `${activeCount}/${zones.length}`;
+
+    zones.forEach(z => {
+      const prev = this._prevStates[z.entityId];
+      const vol = this._vol(z);
+      const muted = this._muted(z);
+      const src = this._src(z);
+      const isOff = z.entity.state === "off";
+      const active = !isOff && !muted && vol > 0;
+      const bass = z.entity.attributes.bass;
+      const treble = z.entity.attributes.treble;
+      const bassRaw = z.entity.attributes.bass_raw;
+      const trebleRaw = z.entity.attributes.treble_raw;
+      const volDb = z.entity.attributes.volume_db;
+
+      const card = r.querySelector(`.zone-card[data-entity="${z.entityId}"]`);
+      if (!card) return;
+
+      // Volume background fill
+      const volBg = card.querySelector(".zone-vol-bg");
+      if (volBg) volBg.style.width = (muted ? 0 : vol) + "%";
+
+      // Zone card classes
+      card.classList.toggle("muted", muted);
+      card.classList.toggle("off", isOff);
+
+      // Zone icon active state
+      const icon = card.querySelector(".zone-icon");
+      if (icon) {
+        icon.classList.toggle("active", active);
+        icon.innerHTML = mtxSvg(muted ? "speakerMuted" : "speaker");
+      }
+
+      // Detail line (volume % · source)
+      const detail = card.querySelector(".zone-detail");
+      if (detail) detail.textContent = `${muted ? "Stumm" : vol + "%"}${this._config.show_source && src !== "---" ? " · " + src : ""}`;
+
+      // Badge
+      const zoneBadge = card.querySelector(".zone-badge");
+      if (zoneBadge) {
+        zoneBadge.textContent = muted ? "MUTE" : vol + "%";
+        zoneBadge.className = "zone-badge" + (muted ? " muted" : "");
+      }
+
+      // Volume slider (only update if not currently being dragged)
+      const slider = card.querySelector("[data-volume]");
+      if (slider && document.activeElement !== slider) {
+        slider.value = vol;
+        const fill = slider.closest(".mtx-slider-wrap")?.querySelector(".mtx-slider-fill");
+        if (fill) fill.style.width = vol + "%";
+        const valSpan = slider.closest(".vol-row")?.querySelector(".mtx-val");
+        if (valSpan) valSpan.innerHTML = `${vol}%${volDb != null ? "<br><small>" + volDb + " dB</small>" : ""}`;
+      }
+
+      // Mute button
+      const muteBtn = card.querySelector("[data-mute]");
+      if (muteBtn) {
+        muteBtn.className = "mtx-btn" + (muted ? " active-mute" : "");
+        muteBtn.dataset.muted = muted;
+        muteBtn.innerHTML = mtxSvg(muted ? "speakerMuted" : "speaker", 18);
+      }
+
+      // Source buttons
+      card.querySelectorAll("[data-source]").forEach(btn => {
+        btn.classList.toggle("active", btn.dataset.value === src);
+      });
+
+      // Bass slider (only if not being dragged)
+      const bassSlider = card.querySelector("[data-bass]");
+      if (bassSlider && document.activeElement !== bassSlider && bassRaw != null) {
+        bassSlider.value = bassRaw;
+        const fill = bassSlider.closest(".mtx-slider-wrap")?.querySelector(".mtx-slider-fill");
+        if (fill) fill.style.width = (bassRaw / 14 * 100) + "%";
+        const label = bassSlider.closest(".tone-ctrl")?.querySelector(".tone-val");
+        if (label) label.textContent = (bass > 0 ? "+" : "") + bass + " dB";
+      }
+
+      // Treble slider (only if not being dragged)
+      const trebleSlider = card.querySelector("[data-treble]");
+      if (trebleSlider && document.activeElement !== trebleSlider && trebleRaw != null) {
+        trebleSlider.value = trebleRaw;
+        const fill = trebleSlider.closest(".mtx-slider-wrap")?.querySelector(".mtx-slider-fill");
+        if (fill) fill.style.width = (trebleRaw / 14 * 100) + "%";
+        const label = trebleSlider.closest(".tone-ctrl")?.querySelector(".tone-val");
+        if (label) label.textContent = (treble > 0 ? "+" : "") + treble + " dB";
+      }
+
+      this._prevStates[z.entityId] = { vol, muted, src, bass, treble, bassRaw, trebleRaw };
+    });
+  }
 
   _render() {
     if (!this.shadowRoot) return;
@@ -306,7 +415,7 @@ class AudacMTXCard extends HTMLElement {
           background: ${t.isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)'};
           padding: 10px 12px; border-radius: 12px;
         }
-        .tone-val { font-size: 18px; font-weight: 700; color: ${t.text}; }
+        .tone-val { font-size: 16px; font-weight: 700; color: ${t.text}; }
       </style>
       <div class="mtx-card">
         <div class="mtx-header">
@@ -322,6 +431,17 @@ class AudacMTXCard extends HTMLElement {
         </div>
       </div>
     `;
+    this._rendered = true;
+    zones.forEach(z => {
+      const vol = this._vol(z), muted = this._muted(z), src = this._src(z);
+      this._prevStates[z.entityId] = {
+        vol, muted, src,
+        bass: z.entity.attributes.bass,
+        treble: z.entity.attributes.treble,
+        bassRaw: z.entity.attributes.bass_raw,
+        trebleRaw: z.entity.attributes.treble_raw,
+      };
+    });
     this._attachEvents();
   }
 
@@ -358,6 +478,8 @@ class AudacMTXCard extends HTMLElement {
     const srcList = this._srcList(z);
     const bass = z.entity.attributes.bass;
     const treble = z.entity.attributes.treble;
+    const bassRaw = z.entity.attributes.bass_raw != null ? z.entity.attributes.bass_raw : 7;
+    const trebleRaw = z.entity.attributes.treble_raw != null ? z.entity.attributes.treble_raw : 7;
     const volDb = z.entity.attributes.volume_db;
     return `
       <div class="zone-controls">
@@ -390,8 +512,8 @@ class AudacMTXCard extends HTMLElement {
               <span class="tone-val">${bass > 0 ? '+' : ''}${bass} dB</span>
             </div>
             <div class="mtx-slider-wrap" style="height:28px;">
-              <input type="range" class="mtx-slider" min="0" max="14" step="1" value="${z.entity.attributes.bass_raw != null ? z.entity.attributes.bass_raw : 7}" data-bass="${z.entityId}" />
-              <div class="mtx-slider-fill" style="width:${((z.entity.attributes.bass_raw != null ? z.entity.attributes.bass_raw : 7) / 14) * 100}%;"></div>
+              <input type="range" class="mtx-slider" min="0" max="14" step="1" value="${bassRaw}" data-bass="${z.entityId}" />
+              <div class="mtx-slider-fill" style="width:${(bassRaw / 14) * 100}%;"></div>
             </div>
           </div>` : ''}
           ${treble != null ? `
@@ -401,8 +523,8 @@ class AudacMTXCard extends HTMLElement {
               <span class="tone-val">${treble > 0 ? '+' : ''}${treble} dB</span>
             </div>
             <div class="mtx-slider-wrap" style="height:28px;">
-              <input type="range" class="mtx-slider" min="0" max="14" step="1" value="${z.entity.attributes.treble_raw != null ? z.entity.attributes.treble_raw : 7}" data-treble="${z.entityId}" />
-              <div class="mtx-slider-fill" style="width:${((z.entity.attributes.treble_raw != null ? z.entity.attributes.treble_raw : 7) / 14) * 100}%;"></div>
+              <input type="range" class="mtx-slider" min="0" max="14" step="1" value="${trebleRaw}" data-treble="${z.entityId}" />
+              <div class="mtx-slider-fill" style="width:${(trebleRaw / 14) * 100}%;"></div>
             </div>
           </div>` : ''}
         </div>` : ''}
@@ -424,10 +546,10 @@ class AudacMTXCard extends HTMLElement {
     r.querySelectorAll("[data-volume]").forEach(el => {
       el.addEventListener("input", e => {
         const v = parseInt(e.target.value);
-        const fill = e.target.closest('.mtx-slider-wrap').querySelector('.mtx-slider-fill');
-        if (fill) fill.style.width = v + '%';
-        const valSpan = e.target.closest('.vol-row').querySelector('.mtx-val');
-        if (valSpan) valSpan.innerHTML = v + '%';
+        const fill = e.target.closest(".mtx-slider-wrap").querySelector(".mtx-slider-fill");
+        if (fill) fill.style.width = v + "%";
+        const valSpan = e.target.closest(".vol-row").querySelector(".mtx-val");
+        if (valSpan) valSpan.innerHTML = v + "%";
       });
       el._debouncedVolumeSet = el._debouncedVolumeSet || mtxDebounce((v) => {
         this._callService("media_player", "volume_set", { entity_id: el.dataset.volume, volume_level: v / 100 });
@@ -444,8 +566,7 @@ class AudacMTXCard extends HTMLElement {
         const fill = e.target.closest(".mtx-slider-wrap")?.querySelector(".mtx-slider-fill");
         if (fill) fill.style.width = (v / 14 * 100) + "%";
         const label = e.target.closest(".tone-ctrl")?.querySelector(".tone-val");
-        const db = (v - 7) * 2;
-        if (label) label.textContent = (db > 0 ? "+" : "") + db + " dB";
+        if (label) label.textContent = ((v - 7) * 2 > 0 ? "+" : "") + (v - 7) * 2 + " dB";
       });
       el._debouncedBassSet = el._debouncedBassSet || mtxDebounce((v) => {
         this._callService("media_player", "set_bass", { entity_id: el.dataset.bass, bass: v });
@@ -459,8 +580,7 @@ class AudacMTXCard extends HTMLElement {
         const fill = e.target.closest(".mtx-slider-wrap")?.querySelector(".mtx-slider-fill");
         if (fill) fill.style.width = (v / 14 * 100) + "%";
         const label = e.target.closest(".tone-ctrl")?.querySelector(".tone-val");
-        const db = (v - 7) * 2;
-        if (label) label.textContent = (db > 0 ? "+" : "") + db + " dB";
+        if (label) label.textContent = ((v - 7) * 2 > 0 ? "+" : "") + (v - 7) * 2 + " dB";
       });
       el._debouncedTrebleSet = el._debouncedTrebleSet || mtxDebounce((v) => {
         this._callService("media_player", "set_treble", { entity_id: el.dataset.treble, treble: v });

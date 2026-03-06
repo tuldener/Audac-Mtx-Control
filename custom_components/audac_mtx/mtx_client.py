@@ -1,12 +1,12 @@
 """TCP client for communicating with the Audac MTX device.
 
 Protocol reference (MTX48/MTX88):
-  Command:  #|X001|source|CMD|arg|U|\\r\\n
-  Answer:   #|source|X001|CMD|data|checksum|\\r\\n
-  Update:   #|ALL|X001|CMD|data|checksum|\\r\\n  (broadcast after SET)
+  Command: #|X001|source|CMD|arg|U|\r\n
+  Answer:  #|source|X001|CMD|data|checksum|\r\n
+  Update:  #|ALL|X001|CMD|data|checksum|\r\n  (broadcast after SET)
 
-  GET responses strip the 'G' prefix: GZI01 → ZI01, GVALL → VALL
-  SET responses echo the command with '+' as data.
+GET responses strip the 'G' prefix: GZI01 → ZI01, GVALL → VALL
+SET responses echo the command with '+' as data.
 """
 from __future__ import annotations
 
@@ -22,6 +22,15 @@ MAX_RETRIES = 1
 RECONNECT_DELAY = 1.0
 RECONNECT_MAX_DELAY = 30.0
 INTER_COMMAND_DELAY = 0.15
+
+# Hard timeout for a single send-and-receive cycle (seconds).
+# Prevents the asyncio.Lock from being held indefinitely when the TCP
+# connection silently hangs (no response, no RST, no EOF).
+COMMAND_TIMEOUT = 8.0
+
+# Hard timeout for the entire get_all_zones() call (seconds).
+# Covers bulk + per-zone bass/treble queries for up to 8 zones.
+GET_ALL_ZONES_TIMEOUT = 45.0
 
 
 class MTXClient:
@@ -110,7 +119,6 @@ class MTXClient:
         buffer = b""
         loop = asyncio.get_running_loop()
         deadline = loop.time() + timeout
-
         while True:
             remaining = deadline - loop.time()
             if remaining <= 0:
@@ -124,41 +132,32 @@ class MTXClient:
                     break
                 buffer += chunk
                 _LOGGER.debug("MTX raw recv chunk (%d bytes): %s", len(chunk), chunk[:200])
-
                 text = buffer.decode(errors="replace")
                 lines = text.replace("\r\n", "\n").replace("\r", "\n").split("\n")
-
                 for line in lines[:-1]:
                     line = line.strip()
                     if not line or not line.startswith("#|"):
                         continue
-
                     parts = line.split("|")
                     if len(parts) < 5:
                         continue
-
                     if parts[1].strip() == "ALL":
                         continue
-
                     resp_cmd = parts[3].strip()
                     if resp_cmd in expected_cmds:
                         _LOGGER.debug("MTX matched %s: %s", expected_cmds, line[:120])
                         return line
-
                     _LOGGER.debug(
                         "Skipping mismatched response: got '%s', expected %s: %s",
                         resp_cmd, expected_cmds, line[:80],
                     )
-
                 last_line = lines[-1]
                 if last_line and last_line.strip():
                     buffer = last_line.encode()
                 else:
                     buffer = b""
-
             except asyncio.TimeoutError:
                 continue
-
         if buffer:
             _LOGGER.debug(
                 "MTX no match in buffer for %s: %s",
@@ -167,45 +166,60 @@ class MTXClient:
         return ""
 
     async def _send_and_receive(self, command: str, argument: str = "0", timeout: float = 2.0) -> str:
+        """Send a command and wait for a matching response.
+
+        The entire operation (including lock acquisition) is wrapped in
+        COMMAND_TIMEOUT to prevent the lock from being held indefinitely
+        when the TCP connection silently hangs.
+        """
         expected_cmds = self._expected_response_cmds(command)
 
-        async with self._lock:
-            for attempt in range(MAX_RETRIES + 1):
-                try:
-                    await self._ensure_connected()
-                except ConnectionError:
-                    if attempt < MAX_RETRIES:
-                        self._consecutive_failures += 1
-                        continue
-                    raise
-
-                await self._flush_buffer()
-
-                raw = self._build_command(command, argument)
-                try:
-                    self._writer.write(raw)
-                    await self._writer.drain()
-
-                    response = await self._read_response(expected_cmds, timeout=timeout)
-
-                    if not response:
+        async def _do() -> str:
+            async with self._lock:
+                for attempt in range(MAX_RETRIES + 1):
+                    try:
+                        await self._ensure_connected()
+                    except ConnectionError:
                         if attempt < MAX_RETRIES:
-                            await self.disconnect()
+                            self._consecutive_failures += 1
                             continue
-                        return ""
+                        raise
+                    await self._flush_buffer()
+                    raw = self._build_command(command, argument)
+                    try:
+                        self._writer.write(raw)
+                        await self._writer.drain()
+                        response = await self._read_response(expected_cmds, timeout=timeout)
+                        if not response:
+                            if attempt < MAX_RETRIES:
+                                await self.disconnect()
+                                continue
+                            return ""
+                        self._consecutive_failures = 0
+                        return response
+                    except (asyncio.TimeoutError, OSError, ConnectionError) as err:
+                        _LOGGER.warning("MTX error cmd=%s attempt=%d: %s", command, attempt, err)
+                        await self.disconnect()
+                        self._consecutive_failures += 1
+                        if attempt < MAX_RETRIES:
+                            continue
+                        raise ConnectionError(f"Lost connection to MTX: {err}") from err
+            return ""
 
-                    self._consecutive_failures = 0
-                    return response
-
-                except (asyncio.TimeoutError, OSError, ConnectionError) as err:
-                    _LOGGER.warning("MTX error cmd=%s attempt=%d: %s", command, attempt, err)
-                    await self.disconnect()
-                    self._consecutive_failures += 1
-                    if attempt < MAX_RETRIES:
-                        continue
-                    raise ConnectionError(f"Lost connection to MTX: {err}") from err
-
-        return ""
+        try:
+            return await asyncio.wait_for(_do(), timeout=COMMAND_TIMEOUT)
+        except asyncio.TimeoutError:
+            _LOGGER.warning(
+                "MTX command %s timed out after %.0fs (lock or TCP hang) — forcing disconnect",
+                command, COMMAND_TIMEOUT,
+            )
+            # Force-release the connection so the next poll starts fresh.
+            # The lock may still be held; we reset the writer/reader directly
+            # so the next _ensure_connected() opens a new socket.
+            self._writer = None
+            self._reader = None
+            self._consecutive_failures += 1
+            raise ConnectionError(f"Command {command} timed out") from None
 
     @staticmethod
     def _get_data_field(response: str) -> str:
@@ -225,15 +239,12 @@ class MTXClient:
     async def get_zone_info(self, zone: int) -> dict[str, Any]:
         resp = await self._send_and_receive(f"GZI0{zone}")
         data = self._get_data_field(resp)
-
         if not data or data == "+":
             return {}
-
         values = data.split("^")
         if len(values) < 5:
             _LOGGER.warning("Zone %d: expected >=5 fields, got %d: %s", zone, len(values), data)
             return {}
-
         try:
             volume_raw = int(values[0])
             routing = int(values[1])
@@ -243,7 +254,6 @@ class MTXClient:
         except (ValueError, IndexError) as err:
             _LOGGER.warning("Zone %d parse error: %s", zone, err)
             return {}
-
         return {
             "volume": volume_raw,
             "volume_db": -volume_raw,
@@ -257,11 +267,27 @@ class MTXClient:
         }
 
     async def get_all_zones(self, zones_count: int = 8) -> dict[int, dict[str, Any]]:
+        """Fetch all zone data with a hard overall timeout to prevent coordinator freeze."""
+        try:
+            return await asyncio.wait_for(
+                self._get_all_zones_inner(zones_count),
+                timeout=GET_ALL_ZONES_TIMEOUT,
+            )
+        except asyncio.TimeoutError:
+            _LOGGER.warning(
+                "get_all_zones() exceeded %.0fs total timeout — forcing disconnect to unfreeze",
+                GET_ALL_ZONES_TIMEOUT,
+            )
+            self._writer = None
+            self._reader = None
+            self._consecutive_failures += 1
+            raise ConnectionError("get_all_zones timed out") from None
+
+    async def _get_all_zones_inner(self, zones_count: int) -> dict[int, dict[str, Any]]:
         if self._bulk_supported is False:
             return await self._get_all_zones_individual(zones_count)
 
         zones: dict[int, dict[str, Any]] = {}
-
         volumes = await self._get_bulk("GVALL", zones_count)
         await asyncio.sleep(INTER_COMMAND_DELAY)
         routings = await self._get_bulk("GRALL", zones_count)
@@ -274,11 +300,10 @@ class MTXClient:
                 _LOGGER.info(
                     "MTX bulk commands not supported, switching to per-zone queries"
                 )
-                self._bulk_supported = False
+            self._bulk_supported = False
             return await self._get_all_zones_individual(zones_count)
 
         self._bulk_supported = True
-
         for zone in range(1, zones_count + 1):
             zones[zone] = {
                 "volume": volumes.get(zone, 70),
@@ -299,7 +324,6 @@ class MTXClient:
                     zones[zone]["bass"] = bass
                     zones[zone]["bass_db"] = BASS_TREBLE_MAP.get(bass, 0)
                 await asyncio.sleep(INTER_COMMAND_DELAY)
-
                 treble = await self._get_single_value(f"GT0{zone}")
                 if treble is not None:
                     zones[zone]["treble"] = treble
@@ -329,11 +353,9 @@ class MTXClient:
     async def _get_bulk(self, command: str, zones_count: int) -> dict[int, int]:
         resp = await self._send_and_receive(command, timeout=3.0)
         data = self._get_data_field(resp)
-
         if not data or data == "+":
             _LOGGER.debug("No data for bulk command %s, will fall back to per-zone", command)
             return {}
-
         values = data.split("^")
         result = {}
         for i, val in enumerate(values):
@@ -344,16 +366,13 @@ class MTXClient:
                 result[zone] = int(val)
             except ValueError:
                 _LOGGER.warning("%s: invalid value '%s' for zone %d", command, val, zone)
-
         return result
 
     async def _get_single_value(self, command: str) -> int | None:
         resp = await self._send_and_receive(command)
         data = self._get_data_field(resp)
-
         if not data or data == "+":
             return None
-
         try:
             return int(data)
         except ValueError:

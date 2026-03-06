@@ -15,13 +15,13 @@ from .mtx_client import MTXClient
 
 _LOGGER = logging.getLogger(__name__)
 
-# Poll every 30 s — gives plenty of headroom for get_all_zones() (~20-40 s
-# during startup) to finish before the next cycle begins.
-SCAN_INTERVAL = timedelta(seconds=30)
+# Poll every 60 s — gives the MTX device enough time to respond to all
+# zone queries (~20-45 s) before the next cycle starts.
+SCAN_INTERVAL = timedelta(seconds=60)
 
 # Hard timeout for a complete coordinator update cycle.
 # Must be longer than GET_ALL_ZONES_TIMEOUT (45 s) in mtx_client.py.
-UPDATE_TIMEOUT = 60.0
+UPDATE_TIMEOUT = 55.0
 
 
 class AudacMTXCoordinator(DataUpdateCoordinator[dict[int, dict[str, Any]]]):
@@ -41,35 +41,23 @@ class AudacMTXCoordinator(DataUpdateCoordinator[dict[int, dict[str, Any]]]):
         self._zones_count = entry.data.get("zones", MODEL_ZONES.get(model, 8))
 
     async def _async_update_data(self) -> dict[int, dict[str, Any]]:
-        """Fetch data from the MTX device with a hard overall timeout.
+        """Fetch data from the MTX device.
 
-        Wrapping in wait_for() ensures that even if MTXClient's internal
-        timeouts fail to fire (e.g. a double-lock scenario), the coordinator
-        will never block the HA event loop indefinitely.
-
-        After a successful fetch the HA failure counter is explicitly reset so
-        the coordinator never enters exponential backoff due to transient lock
-        contention that occurred during the long startup get_all_zones() call.
+        The UPDATE_TIMEOUT wraps the entire fetch to ensure we never block
+        the HA event loop if the MTX device stops responding.
         """
         try:
-            result = await asyncio.wait_for(
+            return await asyncio.wait_for(
                 self._fetch_data(),
                 timeout=UPDATE_TIMEOUT,
             )
-            # Reset backoff state after every successful update so that a slow
-            # first_refresh() does not permanently suppress subsequent polls.
-            self.last_update_success = True
-            return result
         except asyncio.TimeoutError:
-            _LOGGER.error(
-                "MTX coordinator update timed out after %ss, "
-                "forcing client disconnect to unfreeze",
+            _LOGGER.warning(
+                "MTX coordinator update timed out after %ss — disconnecting client",
                 UPDATE_TIMEOUT,
             )
-            # Forcibly reset the client so the next cycle gets a fresh connection.
-            self.client._writer = None
-            self.client._reader = None
-            self.client._consecutive_failures += 1
+            # Force-reset the TCP connection so the next cycle reconnects cleanly.
+            await self.client.disconnect()
             if self.data:
                 return self.data
             raise UpdateFailed(f"Update timed out after {UPDATE_TIMEOUT}s") from None

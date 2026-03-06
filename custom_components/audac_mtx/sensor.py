@@ -13,6 +13,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from .const import DOMAIN, CONF_MODEL, MODEL_MTX88, MODEL_ZONES, get_source_names
 from .coordinator import AudacMTXCoordinator
 from .entity import AudacMTXBaseEntity
+from .helpers import _async_update_zone_visibility
 
 _LOGGER = logging.getLogger(__name__)
 

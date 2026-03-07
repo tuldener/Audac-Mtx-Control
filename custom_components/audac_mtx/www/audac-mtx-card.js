@@ -707,10 +707,6 @@ class AudacMTXCardEditor extends HTMLElement {
         </div>
         <div class="checkbox-field"><input type="checkbox" id="show_source" ${this._config.show_source !== false ? 'checked' : ''} /><label for="show_source">Quellenauswahl anzeigen</label></div>
         <div class="checkbox-field"><input type="checkbox" id="show_bass_treble" ${this._config.show_bass_treble !== false ? 'checked' : ''} /><label for="show_bass_treble">Bass / H\u00f6hen anzeigen</label></div>
-        <div class="section-title">Zonen</div>
-        <p class="hint">Leer lassen f\u00fcr automatische Erkennung aller Audac MTX Entities.</p>
-        ${this._renderZoneRows()}
-        <button class="btn-add" id="add-zone">+ Zone hinzuf\u00fcgen</button>
       </div>
     `;
     this.shadowRoot.getElementById("title").addEventListener("change", e => { this._config.title = e.target.value; this._fire(); });
@@ -740,42 +736,6 @@ class AudacMTXCardEditor extends HTMLElement {
     this.shadowRoot.getElementById("theme").addEventListener("change", e => { this._config.theme = e.target.value; this._fire(); });
     this.shadowRoot.getElementById("show_source").addEventListener("change", e => { this._config.show_source = e.target.checked; this._fire(); });
     this.shadowRoot.getElementById("show_bass_treble").addEventListener("change", e => { this._config.show_bass_treble = e.target.checked; this._fire(); });
-    this.shadowRoot.getElementById("add-zone").addEventListener("click", () => {
-      if (!this._config.zones) this._config.zones = [];
-      this._config.zones.push({ entity: "", name: "" });
-      this._render();
-    });
-    this.shadowRoot.querySelectorAll("[data-zone-entity]").forEach(el => {
-      el.addEventListener("change", e => {
-        const i = parseInt(el.dataset.zoneEntity);
-        this._ensureZone(i);
-        if (typeof this._config.zones[i] === "string") this._config.zones[i] = { entity: e.target.value.trim(), name: "" };
-        else this._config.zones[i].entity = e.target.value.trim();
-        this._fire();
-      });
-    });
-    this.shadowRoot.querySelectorAll("[data-zone-name]").forEach(el => {
-      el.addEventListener("change", e => {
-        const i = parseInt(el.dataset.zoneName);
-        this._ensureZone(i);
-        if (typeof this._config.zones[i] === "string") this._config.zones[i] = { entity: this._config.zones[i], name: e.target.value.trim() };
-        else this._config.zones[i].name = e.target.value.trim();
-        this._fire();
-      });
-    });
-    this.shadowRoot.querySelectorAll("[data-zone-remove]").forEach(el => {
-      el.addEventListener("click", () => { this._config.zones.splice(parseInt(el.dataset.zoneRemove), 1); this._fire(); this._render(); });
-    });
-  }
-  _ensureZone(i) { if (!this._config.zones) this._config.zones = []; while (this._config.zones.length <= i) this._config.zones.push({ entity: "", name: "" }); }
-  _renderZoneRows() {
-    const z = this._config.zones || [];
-    if (z.length === 0) return '<p class="hint">Keine Zonen konfiguriert \u2013 automatische Erkennung aktiv.</p>';
-    return z.map((v, i) => {
-      const e = typeof v === "string" ? v : (v.entity || "");
-      const n = typeof v === "object" ? (v.name || "") : "";
-      return `<div class="zone-row"><input type="text" placeholder="media_player.audac_mtx_zone_${i+1}" value="${e}" data-zone-entity="${i}" /><input type="text" placeholder="Anzeigename" value="${n}" data-zone-name="${i}" style="max-width:140px;" /><button class="btn-remove" data-zone-remove="${i}">\u2715</button></div>`;
-    }).join("");
   }
   _fire() { this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: this._config }, bubbles: true, composed: true })); }
 }

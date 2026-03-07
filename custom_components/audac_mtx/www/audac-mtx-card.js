@@ -1,4 +1,4 @@
-const CARD_VERSION = "2.4.2";
+const CARD_VERSION = "2.4.3";
 
 // ─── i18n ───────────────────────────────────────────────────────────
 const _mtxLang = () => {
@@ -56,6 +56,22 @@ const _mtxI18n = {
 };
 function mtxT(key) { const l = _mtxLang(); return (_mtxI18n[l] || _mtxI18n['en'])[key] || _mtxI18n['en'][key] || key; }
 function mtxPlural(count, one, many) { return count === 1 ? one : many; }
+function mtxLinkedNames(hass, zoneNumbers) {
+  if (!hass || !zoneNumbers || zoneNumbers.length === 0) return '';
+  const names = [];
+  for (const zNum of zoneNumbers) {
+    const match = Object.keys(hass.states).find(id =>
+      id.startsWith('media_player.') && id.includes('audac_mtx') && id.endsWith('_zone_' + zNum)
+    );
+    if (match) {
+      const fn = hass.states[match].attributes.friendly_name || '';
+      names.push(mtxShortName(fn, 'Audac MTX'));
+    } else {
+      names.push('Zone ' + zNum);
+    }
+  }
+  return names.join(', ');
+}
 
 // MUST be at top: HA reads this synchronously to know which custom elements to wait for
 window.customCards = window.customCards || [];
@@ -594,7 +610,7 @@ class AudacMTXCard extends HTMLElement {
           <div class="zone-content">
             <div class="zone-icon ${active ? 'active' : ''}">${mtxSvg(muted ? 'speakerMuted' : 'speaker')}</div>
             <div class="zone-info">
-              <span class="zone-name">${mtxEscape(z._shortName || z.name)}${(z.entity.attributes.linked_zones || []).length > 0 ? ' <span style="font-size:10px;opacity:0.6;" title="${mtxT('linked_zones')}">🔗</span>' : ''}</span>
+              <span class="zone-name">${mtxEscape(z._shortName || z.name)}${(z.entity.attributes.linked_zones || []).length > 0 ? ' <span style="font-size:10px;opacity:0.6;" title="${mtxT('linked_zones')}">🔗 <span style="font-size:9px;">' + mtxEscape(mtxLinkedNames(this._hass, z.entity.attributes.linked_zones)) + '</span></span>' : ''}</span>
               <span class="zone-detail">${muted ? mtxT('muted') : (this._config.show_source && src !== '---' ? mtxEscape(src) : '')}</span>
             </div>
             ${muted ? `<div class="zone-badge muted">MUTE</div>` : ''}

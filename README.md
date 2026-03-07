@@ -2,7 +2,7 @@
 
 [![HACS Custom](https://img.shields.io/badge/HACS-Custom-41BDF5.svg?style=flat-square)](https://github.com/hacs/integration)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/Version-2.0.1-green.svg?style=flat-square)](https://github.com/tuldener/Audac-Mtx-Control)
+[![Version](https://img.shields.io/badge/Version-2.3.1-green.svg?style=flat-square)](https://github.com/tuldener/Audac-Mtx-Control)
 
 Home Assistant Integration zur Steuerung von **Audac MTX** Audio-Matrizen (MTX48 / MTX88).
 
@@ -15,7 +15,8 @@ Kommuniziert direkt per TCP mit dem MTX-Geraet und liefert eine Bubble Card-insp
 - **Direkte TCP-Verbindung** - Kommuniziert direkt mit dem Audac MTX (Port 5001)
 - **Media Player Entities** - Jede Zone wird als eigener Media Player dargestellt
 - **Zonensteuerung** - Lautstaerke, Mute, Quellenauswahl pro Zone
-- **Bass & Hoehen** - Anzeige und Steuerung der Klangregelung (+-14 dB)
+- **Zonenkopplung** - Zonen als Master/Slave koppeln (Checkboxen in den Optionen). Slave-Zonen werden automatisch synchronisiert und in der Kachel ausgeblendet
+- **Bass & Hoehen** - Anzeige und Steuerung der Klangregelung (+-14 dB), global ein-/ausblendbar
 - **Quellenauswahl** - Uebersichtliches Grid mit allen verfuegbaren Eingaengen
 - **Automatische Erkennung** - Die Card findet alle MTX-Zonen automatisch
 - **Benutzerdefinierte Namen** - Zonen und Quellen individuell benennen (ueber Optionen)
@@ -92,6 +93,29 @@ accent_color: ""
 ---
 
 ## Changelog
+
+### 2.3.1
+- Fix: Zonenkopplung funktionierte nicht (Sync + Ausblenden in der Kachel)
+- Coordinator liest jetzt das neue `zone_X_links`-Format (Liste) statt nur das alte `zone_X_linked_to` (int)
+- Kachel blendet Slave-Zonen (nicht-leeres `linked_to`) korrekt aus
+
+### 2.3.0
+- Kopplung als Checkboxen (`SelectSelector`, Multi-Select, Listenmodus) statt Dropdown
+- Migration vom alten Format (`zone_X_linked_to`) auf neues Format (`zone_X_links`)
+
+### 2.2.1
+- Slave-Zonen werden bei jedem Coordinator-Poll (~60s) automatisch synchronisiert
+- Toleranz bei Lautstaerke (+-2 Einheiten), exakter Abgleich fuer Mute, Quelle, Bass, Treble
+
+### 2.2.0
+- Zonenkopplung (Master/Slave) in den Integrationsoptionen
+- Sofortige Spiegelung bei Befehlen an die Master-Zone
+
+### 2.1.1
+- Fix: Zonen-Dropdown im Single-Card-Editor
+
+### 2.1.0
+- Globale Bass/Treble-Sichtbarkeitsoptionen in der Integrationskonfiguration
 
 ### 2.0.1
 - Fix: `_async_update_zone_visibility` war nicht definiert

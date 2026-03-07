@@ -1,8 +1,8 @@
-const CARD_VERSION = "2.4.1";
+const CARD_VERSION = "2.4.2";
 
 // ─── i18n ───────────────────────────────────────────────────────────
 const _mtxLang = () => {
-  try { return document.querySelector('home-assistant')?.hass?.language || 'de'; } catch(e) { return 'de'; }
+  try { return document.querySelector('home-assistant')?.hass?.language || 'en'; } catch(e) { return 'en'; }
 };
 const _mtxI18n = {
   de: {
@@ -54,7 +54,7 @@ const _mtxI18n = {
     none_configured: '(none configured)',
   },
 };
-function mtxT(key) { const l = _mtxLang(); return (_mtxI18n[l] || _mtxI18n['de'])[key] || _mtxI18n['de'][key] || key; }
+function mtxT(key) { const l = _mtxLang(); return (_mtxI18n[l] || _mtxI18n['en'])[key] || _mtxI18n['en'][key] || key; }
 function mtxPlural(count, one, many) { return count === 1 ? one : many; }
 
 // MUST be at top: HA reads this synchronously to know which custom elements to wait for

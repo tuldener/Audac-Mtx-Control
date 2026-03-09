@@ -1,4 +1,4 @@
-const XMP44_CARD_VERSION = "3.7.0";
+const XMP44_CARD_VERSION = "3.7.1";
 
 // ─── i18n ───────────────────────────────────────────────────────────
 const _xmpLang = () => {
@@ -253,7 +253,10 @@ class AudacXMP44Card extends HTMLElement {
         .xmp-empty p { font-size: 14px; font-weight: 600; }
         .xmp-empty span { font-size: 12px; opacity: 0.6; text-align: center; }
         .xmp-trigger-grid {
-          display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 6px;
+          display: flex; flex-direction: column; gap: 6px;
+        }
+        .xmp-trigger-row {
+          display: grid; grid-template-columns: 1fr 1fr; gap: 6px;
         }
         .xmp-trigger-btn {
           padding: 10px 12px; border-radius: 12px; border: 1px solid ${t.border};
@@ -421,10 +424,10 @@ class AudacXMP44Card extends HTMLElement {
         html += '<div class="xmp-trigger-grid">';
         for (const btn of triggerBtns) {
           let name = btn.state.attributes?.friendly_name || 'Trigger';
-          // Strip device name prefix
           if (devicePrefix && name.startsWith(devicePrefix + ' ')) name = name.slice(devicePrefix.length + 1);
           const trigNum = btn.state.attributes?.trigger_number;
           const stopBtn = stopBtns.find(s => s.state.attributes?.trigger_number === trigNum);
+          html += '<div class="xmp-trigger-row">';
           html += `<button class="xmp-trigger-btn" data-press-button="${btn.id}">
             <span class="xmp-trigger-icon">${xmpSvg('play', 16)}</span>
             ${xmpEscape(name)}
@@ -435,6 +438,7 @@ class AudacXMP44Card extends HTMLElement {
               Stop
             </button>`;
           }
+          html += '</div>';
         }
         html += '</div>';
       }

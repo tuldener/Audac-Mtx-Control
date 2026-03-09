@@ -24,6 +24,7 @@ PLATFORMS_MTX = [
     Platform.NUMBER,
     Platform.SWITCH,
     Platform.SENSOR,
+    Platform.BUTTON,
 ]
 
 PLATFORMS_XMP44 = [

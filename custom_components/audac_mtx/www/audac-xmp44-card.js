@@ -1,4 +1,4 @@
-const XMP44_CARD_VERSION = "3.6.0";
+const XMP44_CARD_VERSION = "3.6.1";
 
 // ─── i18n ───────────────────────────────────────────────────────────
 const _xmpLang = () => {
@@ -400,8 +400,8 @@ class AudacXMP44Card extends HTMLElement {
 
 // ─── Editor ────────────────────────────────────────────────────────
 class AudacXMP44CardEditor extends HTMLElement {
-  constructor() { super(); this.attachShadow({mode:'open'}); this._config = {}; }
-  setConfig(config) { this._config = {...config}; this._render(); }
+  constructor() { super(); this.attachShadow({mode:'open'}); this._config = {}; this._rendered = false; }
+  setConfig(config) { this._config = {...config}; if (!this._rendered) this._render(); this._rendered = true; }
   set hass(h) { this._hass = h; }
 
   _render() {
@@ -440,7 +440,7 @@ class AudacXMP44CardEditor extends HTMLElement {
     `;
     ['title','theme','accent_color'].forEach(field => {
       const el = this.shadowRoot.getElementById(field);
-      if (el) el.addEventListener(el.tagName === 'SELECT' ? 'change' : 'input', () => {
+      if (el) el.addEventListener('change', () => {
         this._config[field] = el.value;
         this.dispatchEvent(new CustomEvent('config-changed', { detail: { config: this._config } }));
       });

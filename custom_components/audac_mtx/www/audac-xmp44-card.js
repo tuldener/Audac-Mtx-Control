@@ -1,4 +1,4 @@
-const XMP44_CARD_VERSION = "3.6.1";
+const XMP44_CARD_VERSION = "3.7.0";
 
 // ─── i18n ───────────────────────────────────────────────────────────
 const _xmpLang = () => {
@@ -107,6 +107,19 @@ function xmpAutoDiscover(hass) {
     .sort();
 }
 
+/** Find all entities (buttons, switches, sensors) belonging to a given slot. */
+function xmpSlotEntities(hass, slotNumber) {
+  if (!hass || slotNumber == null) return { buttons: [], switches: [], sensors: [] };
+  const result = { buttons: [], switches: [], sensors: [] };
+  for (const [id, state] of Object.entries(hass.states)) {
+    if (state?.attributes?.slot_number !== slotNumber) continue;
+    if (id.startsWith('button.')) result.buttons.push({ id, state });
+    else if (id.startsWith('switch.')) result.switches.push({ id, state });
+    else if (id.startsWith('sensor.')) result.sensors.push({ id, state });
+  }
+  return result;
+}
+
 // ─── Main Card ─────────────────────────────────────────────────────
 class AudacXMP44Card extends HTMLElement {
   constructor() { super(); this.attachShadow({mode:'open'}); this._config = {}; this._hass = null; this._expanded = {}; }
@@ -129,7 +142,9 @@ class AudacXMP44Card extends HTMLElement {
     const slots = entities.map(id => {
       const entity = hass.states[id];
       if (!entity) return null;
-      return { entityId: id, entity };
+      const slotNum = entity.attributes?.slot_number;
+      const related = xmpSlotEntities(hass, slotNum);
+      return { entityId: id, entity, related };
     }).filter(Boolean);
 
     const title = this._config.title || xmpT('title_default');
@@ -237,6 +252,33 @@ class AudacXMP44Card extends HTMLElement {
         }
         .xmp-empty p { font-size: 14px; font-weight: 600; }
         .xmp-empty span { font-size: 12px; opacity: 0.6; text-align: center; }
+        .xmp-trigger-grid {
+          display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 6px;
+        }
+        .xmp-trigger-btn {
+          padding: 10px 12px; border-radius: 12px; border: 1px solid ${t.border};
+          background: ${t.isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)'};
+          color: ${t.text}; font-size: 12px; font-weight: 600;
+          cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center; gap: 8px;
+        }
+        .xmp-trigger-btn:hover { background: ${t.isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)'}; }
+        .xmp-trigger-btn:active { transform: scale(0.97); }
+        .xmp-trigger-icon { color: ${t.accent}; flex-shrink: 0; }
+        .xmp-bt-row {
+          display: flex; align-items: center; justify-content: space-between;
+          padding: 8px 12px; border-radius: 12px;
+          background: ${t.isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)'};
+        }
+        .xmp-bt-label { font-size: 12px; font-weight: 600; }
+        .xmp-bt-value { font-size: 12px; color: ${t.accent}; font-weight: 600; }
+        .xmp-bt-btn {
+          padding: 6px 14px; border-radius: 8px; border: none; font-size: 11px; font-weight: 600;
+          cursor: pointer; transition: all 0.2s ease;
+        }
+        .xmp-bt-btn.on { background: ${t.accentLight}; color: ${t.accent}; }
+        .xmp-bt-btn.off { background: ${t.isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)'}; color: ${t.textSec}; }
+        .xmp-bt-btn.danger { background: ${t.isDark ? 'rgba(239,83,80,0.15)' : 'rgba(239,83,80,0.1)'}; color: #ef5350; }
+        .xmp-bt-btn:hover { opacity: 0.85; }
       </style>
       <div class="xmp-card">
         <div class="xmp-header">
@@ -302,7 +344,37 @@ class AudacXMP44Card extends HTMLElement {
     const a = s.entity.attributes;
     const moduleName = a.module_name || '';
     const state = s.entity.state;
+    const rel = s.related || { buttons: [], switches: [], sensors: [] };
     let html = '<div class="slot-controls">';
+
+    // ── BMP40: Connected device + Pairing + Disconnect ──
+    if (moduleName === 'BMP40') {
+      // Connected device sensor
+      const connSensor = rel.sensors.find(e => e.id.includes('connected_device'));
+      if (connSensor) {
+        const connName = connSensor.state.state || 'Nicht verbunden';
+        html += `<div class="xmp-bt-row"><span class="xmp-bt-label">🔗 ${xmpEscape(connName)}</span></div>`;
+      }
+      // Pairing switch
+      const pairingSwitch = rel.switches.find(e => e.id.includes('pairing'));
+      if (pairingSwitch) {
+        const isOn = pairingSwitch.state.state === 'on';
+        html += `<div class="xmp-bt-row">
+          <span class="xmp-bt-label">${xmpT('pairing')}</span>
+          <button class="xmp-bt-btn ${isOn ? 'on' : 'off'}" data-toggle-switch="${pairingSwitch.id}">
+            ${isOn ? 'ON' : 'OFF'}
+          </button>
+        </div>`;
+      }
+      // Disconnect button
+      const discBtn = rel.buttons.find(e => e.id.includes('disconnect'));
+      if (discBtn) {
+        html += `<div class="xmp-bt-row">
+          <span class="xmp-bt-label">Bluetooth</span>
+          <button class="xmp-bt-btn danger" data-press-button="${discBtn.id}">Disconnect</button>
+        </div>`;
+      }
+    }
 
     // Song info (BMP40, MMP40, NMP40, IMP40)
     const title = a.media_title;
@@ -316,7 +388,7 @@ class AudacXMP44Card extends HTMLElement {
 
     // Playback controls (BMP40, MMP40, NMP40)
     const features = a.supported_features || 0;
-    const hasPlay = features & 4; // PLAY
+    const hasPlay = features & 4;
     if (hasPlay) {
       const isPlaying = state === 'playing';
       html += `<div class="xmp-playback">
@@ -338,6 +410,34 @@ class AudacXMP44Card extends HTMLElement {
                   data-source="${xmpEscape(src)}" data-entity="${s.entityId}">${xmpEscape(src)}</button>`
         ).join('')}
       </div>`;
+    }
+
+    // ── FMP40: Trigger buttons ──
+    if (moduleName === 'FMP40') {
+      const devicePrefix = a.friendly_name || '';
+      const triggerBtns = rel.buttons.filter(e => !e.state.attributes?.friendly_name?.toLowerCase().endsWith(' stop'));
+      const stopBtns = rel.buttons.filter(e => e.state.attributes?.friendly_name?.toLowerCase().endsWith(' stop'));
+      if (triggerBtns.length > 0) {
+        html += '<div class="xmp-trigger-grid">';
+        for (const btn of triggerBtns) {
+          let name = btn.state.attributes?.friendly_name || 'Trigger';
+          // Strip device name prefix
+          if (devicePrefix && name.startsWith(devicePrefix + ' ')) name = name.slice(devicePrefix.length + 1);
+          const trigNum = btn.state.attributes?.trigger_number;
+          const stopBtn = stopBtns.find(s => s.state.attributes?.trigger_number === trigNum);
+          html += `<button class="xmp-trigger-btn" data-press-button="${btn.id}">
+            <span class="xmp-trigger-icon">${xmpSvg('play', 16)}</span>
+            ${xmpEscape(name)}
+          </button>`;
+          if (stopBtn) {
+            html += `<button class="xmp-trigger-btn" data-press-button="${stopBtn.id}">
+              <span class="xmp-trigger-icon">${xmpSvg('stop', 16)}</span>
+              Stop
+            </button>`;
+          }
+        }
+        html += '</div>';
+      }
     }
 
     // Tuner info (DMP40, TMP40)
@@ -391,6 +491,22 @@ class AudacXMP44Card extends HTMLElement {
         this._hass.callService('media_player', 'select_source', {
           entity_id: el.dataset.entity, source: el.dataset.source,
         });
+      });
+    });
+    // Generic button press (triggers, disconnect, station buttons)
+    this.shadowRoot.querySelectorAll('[data-press-button]').forEach(el => {
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this._hass.callService('button', 'press', { entity_id: el.dataset.pressButton });
+      });
+    });
+    // Switch toggle (pairing, stereo, recorder)
+    this.shadowRoot.querySelectorAll('[data-toggle-switch]').forEach(el => {
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const entityId = el.dataset.toggleSwitch;
+        const current = this._hass.states[entityId]?.state;
+        this._hass.callService('switch', current === 'on' ? 'turn_off' : 'turn_on', { entity_id: entityId });
       });
     });
   }

@@ -124,6 +124,7 @@ class BMP40PairingSwitch(CoordinatorEntity, SwitchEntity):
         self._attr_device_info = {
             "identifiers": {(DOMAIN, f"{entry.entry_id}_slot_{slot}")},
         }
+        self._attr_extra_state_attributes = {"slot_number": slot}
 
     @property
     def is_on(self) -> bool | None:
@@ -164,6 +165,7 @@ class TunerStereoSwitch(CoordinatorEntity, SwitchEntity):
         self._attr_device_info = {
             "identifiers": {(DOMAIN, f"{entry.entry_id}_slot_{slot}")},
         }
+        self._attr_extra_state_attributes = {"slot_number": slot}
 
     @property
     def is_on(self) -> bool | None:
@@ -199,6 +201,7 @@ class MMP40RecorderModeSwitch(CoordinatorEntity, SwitchEntity):
         self._attr_device_info = {
             "identifiers": {(DOMAIN, f"{entry.entry_id}_slot_{slot}")},
         }
+        self._attr_extra_state_attributes = {"slot_number": slot}
 
     @property
     def is_on(self) -> bool | None:

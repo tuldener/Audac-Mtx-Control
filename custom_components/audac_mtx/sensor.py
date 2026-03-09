@@ -145,6 +145,7 @@ class BMP40ConnectedDeviceSensor(CoordinatorEntity, SensorEntity):
         self._attr_device_info = {
             "identifiers": {(DOMAIN, f"{entry.entry_id}_slot_{slot}")},
         }
+        self._extra_slot = slot
 
     @property
     def native_value(self) -> str | None:
@@ -165,9 +166,9 @@ class BMP40ConnectedDeviceSensor(CoordinatorEntity, SensorEntity):
     def extra_state_attributes(self) -> dict[str, Any]:
         data = self.coordinator.data
         if not data or self._slot not in data:
-            return {}
+            return {"slot_number": self._extra_slot}
         slot_data = data[self._slot]
-        attrs: dict[str, Any] = {}
+        attrs: dict[str, Any] = {"slot_number": self._extra_slot}
         connected = slot_data.get("connected_device")
         if connected:
             parts = connected.split("^")
@@ -196,6 +197,7 @@ class BMP40PairingStateSensor(CoordinatorEntity, SensorEntity):
         self._attr_device_info = {
             "identifiers": {(DOMAIN, f"{entry.entry_id}_slot_{slot}")},
         }
+        self._extra_slot = slot
 
     @property
     def native_value(self) -> str | None:
@@ -227,6 +229,7 @@ class NMP40PlayerNameSensor(CoordinatorEntity, SensorEntity):
         self._attr_device_info = {
             "identifiers": {(DOMAIN, f"{entry.entry_id}_slot_{slot}")},
         }
+        self._extra_slot = slot
 
     @property
     def native_value(self) -> str | None:
@@ -251,6 +254,7 @@ class NMP40IPAddressSensor(CoordinatorEntity, SensorEntity):
         self._attr_device_info = {
             "identifiers": {(DOMAIN, f"{entry.entry_id}_slot_{slot}")},
         }
+        self._extra_slot = slot
 
     @property
     def native_value(self) -> str | None:
@@ -274,6 +278,8 @@ class TunerFrequencySensor(CoordinatorEntity, SensorEntity):
     def __init__(self, coordinator, entry: ConfigEntry, slot: int) -> None:
         super().__init__(coordinator)
         self._slot = slot
+        self._extra_slot = slot
+        self._attr_extra_state_attributes = {"slot_number": slot}
         self._attr_unique_id = f"{entry.entry_id}_tuner_slot{slot}_frequency"
         self._attr_name = "Frequenz"
         self._attr_device_info = {
@@ -300,6 +306,8 @@ class TunerProgramNameSensor(CoordinatorEntity, SensorEntity):
     def __init__(self, coordinator, entry: ConfigEntry, slot: int) -> None:
         super().__init__(coordinator)
         self._slot = slot
+        self._extra_slot = slot
+        self._attr_extra_state_attributes = {"slot_number": slot}
         self._attr_unique_id = f"{entry.entry_id}_tuner_slot{slot}_program"
         self._attr_name = "Sender"
         self._attr_device_info = {
@@ -325,6 +333,8 @@ class TunerSignalStrengthSensor(CoordinatorEntity, SensorEntity):
     def __init__(self, coordinator, entry: ConfigEntry, slot: int) -> None:
         super().__init__(coordinator)
         self._slot = slot
+        self._extra_slot = slot
+        self._attr_extra_state_attributes = {"slot_number": slot}
         self._attr_unique_id = f"{entry.entry_id}_tuner_slot{slot}_signal"
         self._attr_name = "Signalstärke"
         self._attr_device_info = {
@@ -348,6 +358,8 @@ class TunerBandSensor(CoordinatorEntity, SensorEntity):
     def __init__(self, coordinator, entry: ConfigEntry, slot: int) -> None:
         super().__init__(coordinator)
         self._slot = slot
+        self._extra_slot = slot
+        self._attr_extra_state_attributes = {"slot_number": slot}
         self._attr_unique_id = f"{entry.entry_id}_tuner_slot{slot}_band"
         self._attr_name = "Band"
         self._attr_device_info = {

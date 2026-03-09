@@ -127,6 +127,7 @@ class FMP40TriggerStartButton(CoordinatorEntity, ButtonEntity):
         self._attr_device_info = {
             "identifiers": {(DOMAIN, f"{entry.entry_id}_slot_{slot}")},
         }
+        self._attr_extra_state_attributes = {"slot_number": slot, "trigger_number": trigger}
 
     async def async_press(self) -> None:
         """Start the trigger."""
@@ -157,6 +158,7 @@ class FMP40TriggerStopButton(CoordinatorEntity, ButtonEntity):
         self._attr_device_info = {
             "identifiers": {(DOMAIN, f"{entry.entry_id}_slot_{slot}")},
         }
+        self._attr_extra_state_attributes = {"slot_number": slot, "trigger_number": trigger}
 
     async def async_press(self) -> None:
         """Stop the trigger."""
@@ -193,6 +195,7 @@ class IMP40StationButton(CoordinatorEntity, ButtonEntity):
         self._attr_device_info = {
             "identifiers": {(DOMAIN, f"{entry.entry_id}_slot_{slot}")},
         }
+        self._attr_extra_state_attributes = {"slot_number": slot, "station_pointer": self._pointer}
 
     async def async_press(self) -> None:
         """Select this station."""
@@ -225,6 +228,7 @@ class BMP40DisconnectButton(CoordinatorEntity, ButtonEntity):
         self._attr_device_info = {
             "identifiers": {(DOMAIN, f"{entry.entry_id}_slot_{slot}")},
         }
+        self._attr_extra_state_attributes = {"slot_number": slot}
 
     async def async_press(self) -> None:
         """Disconnect the currently connected device."""
@@ -246,6 +250,7 @@ class TunerSearchUpButton(CoordinatorEntity, ButtonEntity):
         self._attr_unique_id = f"{entry.entry_id}_tuner_slot{slot}_search_up"
         self._attr_name = "Sendersuche +"
         self._attr_device_info = {"identifiers": {(DOMAIN, f"{entry.entry_id}_slot_{slot}")}}
+        self._attr_extra_state_attributes = {"slot_number": slot}
 
     async def async_press(self) -> None:
         await self.coordinator.client.search_up(self._slot)
@@ -262,6 +267,7 @@ class TunerSearchDownButton(CoordinatorEntity, ButtonEntity):
         self._attr_unique_id = f"{entry.entry_id}_tuner_slot{slot}_search_down"
         self._attr_name = "Sendersuche -"
         self._attr_device_info = {"identifiers": {(DOMAIN, f"{entry.entry_id}_slot_{slot}")}}
+        self._attr_extra_state_attributes = {"slot_number": slot}
 
     async def async_press(self) -> None:
         await self.coordinator.client.search_down(self._slot)
@@ -279,6 +285,7 @@ class TunerBandSwitchButton(CoordinatorEntity, ButtonEntity):
         self._attr_unique_id = f"{entry.entry_id}_tuner_slot{slot}_band_switch"
         self._attr_name = "DAB/FM Umschalten"
         self._attr_device_info = {"identifiers": {(DOMAIN, f"{entry.entry_id}_slot_{slot}")}}
+        self._attr_extra_state_attributes = {"slot_number": slot}
 
     async def async_press(self) -> None:
         await self.coordinator.client.switch_band(self._slot)
@@ -296,6 +303,7 @@ class TunerPresetButton(CoordinatorEntity, ButtonEntity):
         self._attr_unique_id = f"{entry.entry_id}_tuner_slot{slot}_preset_{preset}"
         self._attr_name = f"Preset {preset}"
         self._attr_device_info = {"identifiers": {(DOMAIN, f"{entry.entry_id}_slot_{slot}")}}
+        self._attr_extra_state_attributes = {"slot_number": slot, "preset_number": preset}
 
     async def async_press(self) -> None:
         await self.coordinator.client.select_preset(self._slot, self._preset)

@@ -299,6 +299,13 @@ class AudacXMP44Slot(CoordinatorEntity, MediaPlayerEntity):
         custom_name = entry.options.get(f"slot_{slot}_name")
         self._attr_name = custom_name or f"{self._module_name} (Slot {slot})"
 
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, entry.entry_id)},
+            "name": entry.data.get("name", "Audac XMP44"),
+            "manufacturer": "Audac",
+            "model": "XMP44",
+        }
+
         # Build supported features based on module type
         features = MediaPlayerEntityFeature(0)
         if self._module_type in MODULES_WITH_PLAYBACK:

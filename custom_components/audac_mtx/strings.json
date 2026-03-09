@@ -2,8 +2,8 @@
   "config": {
     "step": {
       "user": {
-        "title": "Audac MTX Setup",
-        "description": "Enter the connection details for your Audac MTX device.",
+        "title": "Audac Setup",
+        "description": "Enter the connection details for your Audac device.",
         "data": {
           "host": "Host / IP Address",
           "port": "Port",
@@ -22,7 +22,7 @@
     },
     "step": {
       "init": {
-        "title": "Audac MTX Configuration",
+        "title": "Audac Configuration",
         "description": "Configure zone and source names and visibility.",
         "data": {
           "zone_1_name": "Zone 1 – Name",

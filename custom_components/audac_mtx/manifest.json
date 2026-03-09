@@ -1,6 +1,6 @@
 {
   "domain": "audac_mtx",
-  "name": "Audac MTX",
+  "name": "Audac",
   "after_dependencies": ["frontend", "http", "lovelace"],
   "codeowners": ["@tuldener"],
   "config_flow": true,
@@ -9,5 +9,5 @@
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/tuldener/Audac-Mtx-Control/issues",
   "requirements": [],
-  "version": "3.0.4"
+  "version": "3.0.5"
 }

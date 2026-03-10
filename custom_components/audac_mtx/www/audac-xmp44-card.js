@@ -1,4 +1,4 @@
-const XMP44_CARD_VERSION = "3.8.2";
+const XMP44_CARD_VERSION = "3.8.3";
 
 // ─── i18n ───────────────────────────────────────────────────────────
 const _xmpLang = () => {
@@ -600,7 +600,10 @@ class AudacXMP44Card extends HTMLElement {
     this.shadowRoot.querySelectorAll('[data-toggle]').forEach(el => {
       el.addEventListener('click', () => {
         const id = el.dataset.toggle;
-        this._expanded[id] = !this._expanded[id];
+        const wasExpanded = this._expanded[id];
+        this._expanded = {};
+        if (!wasExpanded) this._expanded[id] = true;
+        this._rendered = false;
         this._render();
       });
     });

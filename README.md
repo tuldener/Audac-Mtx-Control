@@ -2,7 +2,7 @@
 
 [![HACS Custom](https://img.shields.io/badge/HACS-Custom-41BDF5.svg?style=flat-square)](https://github.com/hacs/integration)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/Version-3.8.3-green.svg?style=flat-square)](https://github.com/tuldener/ha-audac/releases/latest)
+[![Version](https://img.shields.io/badge/Version-3.8.4-green.svg?style=flat-square)](https://github.com/tuldener/ha-audac/releases/latest)
 
 [![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=tuldener&repository=ha-audac&category=integration)
 
@@ -81,11 +81,18 @@ Kommuniziert direkt per TCP mit den Geraeten und liefert Bubble Card-inspirierte
 
 ---
 
-## Lovelace Card
+## Lovelace Cards
 
-Die Card wird automatisch als Lovelace-Ressource registriert. Falls noetig, kann sie manuell hinzugefuegt werden:
+Die Cards werden automatisch als Lovelace-Ressource registriert. Falls noetig, koennen sie manuell hinzugefuegt werden:
 
-**Einstellungen** -> **Dashboards** -> **Ressourcen** -> URL: `/audac_mtx/audac-mtx-card.js`, Typ: **JavaScript-Modul**
+**Einstellungen** -> **Dashboards** -> **Ressourcen**
+
+| Card | URL | Typ |
+|---|---|---|
+| MTX | `/audac_mtx/audac-mtx-card.js` | JavaScript-Modul |
+| XMP44 | `/audac_mtx/audac-xmp44-card.js` | JavaScript-Modul |
+
+### MTX Card
 
 ```yaml
 type: custom:audac-mtx-card
@@ -95,6 +102,23 @@ show_source: true
 theme: auto
 accent_color: ""
 ```
+
+### XMP44 Card
+
+```yaml
+type: custom:audac-xmp44-card
+title: Audac XMP44
+theme: auto
+accent_color: ""
+```
+
+Die XMP44 Card erkennt automatisch alle konfigurierten Module und zeigt pro Slot:
+- Playback-Controls (BMP40, MMP40, NMP40)
+- Senderauswahl (IMP40 Favourites)
+- Trigger-Buttons (FMP40)
+- Sendersuche und Presets (DMP40, TMP40)
+- Bluetooth Pairing und Disconnect (BMP40)
+- Song-Info, Frequenz, Signalstaerke, Output Gain
 
 ---
 

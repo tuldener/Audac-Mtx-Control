@@ -7,7 +7,7 @@
 
 [![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=FX6W9WZK&repository=ha-audac&category=integration)
 
-Home Assistant integration for controlling **Audac** audio devices:
+Home Assistant integration for controlling **[Audac](https://audac.eu)** audio devices:
 - **MTX48 / MTX88** – Audio matrix (zone control)
 - **XMP44** – Modular audio system (SourceCon modules)
 

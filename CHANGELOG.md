@@ -1,5 +1,9 @@
 # Changelog
 
+## 3.9.2
+- Icon now uses dark rounded background with white logo — works on both light and dark HA themes
+- HA frontend only requests `icon.png` (not `dark_icon.png`), so the icon must work universally
+
 ## 3.9.1
 - Rebuilt all brand assets from official AUDAC vector source (`.ai`)
 - Light and dark variants with proper luminance-based alpha transparency

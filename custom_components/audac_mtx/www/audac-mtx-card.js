@@ -78,10 +78,10 @@ function mtxLinkedNames(hass, zoneNumbers) {
 window.customCards = window.customCards || [];
 [
   { type: "audac-mtx-card",        name: "Audac MTX",         description: "Multi-zone Audac MTX audio matrix card", preview: true, documentationURL: "https://github.com/FX6W9WZK/ha-audac" },
-  { type: "audac-mtx-volume-card", name: "Audac MTX Volume",  description: "Volume control for a zone", preview: false },
-  { type: "audac-mtx-source-card", name: "Audac MTX Source",  description: "Source selection for a zone", preview: false },
-  { type: "audac-mtx-bass-card",   name: "Audac MTX Bass",    description: "Bass control for a zone", preview: false },
-  { type: "audac-mtx-treble-card", name: "Audac MTX Treble",  description: "Treble control for a zone", preview: false },
+  { type: "audac-mtx-volume-card", name: "Audac MTX Volume",  description: "Volume control for a zone", preview: true },
+  { type: "audac-mtx-source-card", name: "Audac MTX Source",  description: "Source selection for a zone", preview: true },
+  { type: "audac-mtx-bass-card",   name: "Audac MTX Bass",    description: "Bass control for a zone", preview: true },
+  { type: "audac-mtx-treble-card", name: "Audac MTX Treble",  description: "Treble control for a zone", preview: true },
 ].forEach(card => {
   if (!window.customCards.find(c => c.type === card.type)) {
     window.customCards.push(card);
@@ -825,11 +825,37 @@ class AudacMTXVolumeCard extends HTMLElement {
   }
   set hass(hass) { this._hass = hass; this._render(); }
   _render() {
-    if (!this.shadowRoot || !this._hass) return;
+    if (!this.shadowRoot) return;
     const entityId = this._config.entity;
-    const entity = entityId ? this._hass.states[entityId] : this._findEntity();
-    if (!entity) { this.shadowRoot.innerHTML = `<div style="padding:20px;opacity:0.5;">${mtxT("entity_not_found")}: ${mtxEscape(entityId || mtxT("none_configured"))}</div>`; return; }
+    const entity = this._hass ? (entityId ? this._hass.states[entityId] : this._findEntity()) : null;
     const t = mtxThemeVars(mtxIsDark(this._config.theme));
+    if (!entity) {
+      const name = this._config.title || "Audac MTX";
+      this.shadowRoot.innerHTML = `
+        <style>${mtxBaseStyles(t)}
+          .vol-row { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+        </style>
+        <div class="mtx-card">
+          <div class="mtx-header">
+            <div class="mtx-header-icon">${mtxSvg('speaker', 22)}</div>
+            <div class="mtx-header-content">
+              <div class="mtx-header-title">${mtxEscape(name)}</div>
+              <div class="mtx-header-sub">${mtxT("volume")}</div>
+            </div>
+            <div class="mtx-header-badge">75%</div>
+          </div>
+          <div class="vol-row">
+            <button class="mtx-btn">${mtxSvg('speaker', 18)}</button>
+            <div class="mtx-slider-wrap">
+              <input type="range" class="mtx-slider" min="0" max="100" step="1" value="75" disabled />
+              <div class="mtx-slider-fill" style="width: 75%"></div>
+            </div>
+            <span class="mtx-val">75%<br><small>-18 dB</small></span>
+          </div>
+        </div>
+      `;
+      return;
+    }
     const vol = Math.round((entity.attributes.volume_level || 0) * 100);
     const muted = entity.attributes.is_volume_muted === true;
     const volDb = entity.attributes.volume_db;
@@ -896,11 +922,35 @@ class AudacMTXSourceCard extends HTMLElement {
   }
   set hass(hass) { this._hass = hass; this._render(); }
   _render() {
-    if (!this.shadowRoot || !this._hass) return;
+    if (!this.shadowRoot) return;
     const entityId = this._config.entity;
-    const entity = entityId ? this._hass.states[entityId] : this._findEntity();
-    if (!entity) { this.shadowRoot.innerHTML = `<div style="padding:20px;opacity:0.5;">${mtxT("entity_not_found")}: ${mtxEscape(entityId || mtxT("none_configured"))}</div>`; return; }
+    const entity = this._hass ? (entityId ? this._hass.states[entityId] : this._findEntity()) : null;
     const t = mtxThemeVars(mtxIsDark(this._config.theme));
+    if (!entity) {
+      const name = this._config.title || "Audac MTX";
+      const demoSources = ["Mic 1", "Line 3", "Bluetooth"];
+      this.shadowRoot.innerHTML = `
+        <style>${mtxBaseStyles(t)}
+          .src-wrap { margin-top: 8px; }
+        </style>
+        <div class="mtx-card">
+          <div class="mtx-header">
+            <div class="mtx-header-icon">${mtxSvg('source', 22)}</div>
+            <div class="mtx-header-content">
+              <div class="mtx-header-title">${mtxEscape(name)}</div>
+              <div class="mtx-header-sub">${mtxT("source")}</div>
+            </div>
+            <div class="mtx-header-badge">Bluetooth</div>
+          </div>
+          <div class="src-wrap">
+            <div class="mtx-source-grid">
+              ${demoSources.map(s => `<button class="mtx-source-btn ${s === "Bluetooth" ? 'active' : ''}" disabled>${mtxEscape(s)}</button>`).join("")}
+            </div>
+          </div>
+        </div>
+      `;
+      return;
+    }
     const src = entity.attributes.source || "---";
     const srcList = entity.attributes.source_list || [];
     const name = this._config.title || entity.attributes.friendly_name || entityId;
@@ -946,11 +996,37 @@ class AudacMTXBassCard extends HTMLElement {
   }
   set hass(hass) { this._hass = hass; this._render(); }
   _render() {
-    if (!this.shadowRoot || !this._hass) return;
+    if (!this.shadowRoot) return;
     const entityId = this._config.entity;
-    const entity = entityId ? this._hass.states[entityId] : this._findEntity();
-    if (!entity) { this.shadowRoot.innerHTML = `<div style="padding:20px;opacity:0.5;">${mtxT("entity_not_found")}: ${mtxEscape(entityId || mtxT("none_configured"))}</div>`; return; }
+    const entity = this._hass ? (entityId ? this._hass.states[entityId] : this._findEntity()) : null;
     const t = mtxThemeVars(mtxIsDark(this._config.theme));
+    if (!entity) {
+      const name = this._config.title || "Audac MTX";
+      this.shadowRoot.innerHTML = `
+        <style>${mtxBaseStyles(t)}
+          .bass-row { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+        </style>
+        <div class="mtx-card">
+          <div class="mtx-header">
+            <div class="mtx-header-icon">${mtxSvg('equalizer', 22)}</div>
+            <div class="mtx-header-content">
+              <div class="mtx-header-title">${mtxEscape(name)}</div>
+              <div class="mtx-header-sub">${mtxT("bass")}</div>
+            </div>
+            <div class="mtx-header-badge">0 dB</div>
+          </div>
+          <div class="bass-row">
+            <span class="mtx-val" style="min-width:36px;text-align:left;">-14</span>
+            <div class="mtx-slider-wrap">
+              <input type="range" class="mtx-slider" min="0" max="14" step="1" value="7" disabled />
+              <div class="mtx-slider-fill" style="width: 50%"></div>
+            </div>
+            <span class="mtx-val">+14</span>
+          </div>
+        </div>
+      `;
+      return;
+    }
     const bass = entity.attributes.bass;
     const bassRaw = entity.attributes.bass_raw;
     const name = this._config.title || entity.attributes.friendly_name || entityId;
@@ -1006,11 +1082,37 @@ class AudacMTXTrebleCard extends HTMLElement {
   }
   set hass(hass) { this._hass = hass; this._render(); }
   _render() {
-    if (!this.shadowRoot || !this._hass) return;
+    if (!this.shadowRoot) return;
     const entityId = this._config.entity;
-    const entity = entityId ? this._hass.states[entityId] : this._findEntity();
-    if (!entity) { this.shadowRoot.innerHTML = `<div style="padding:20px;opacity:0.5;">${mtxT("entity_not_found")}: ${mtxEscape(entityId || mtxT("none_configured"))}</div>`; return; }
+    const entity = this._hass ? (entityId ? this._hass.states[entityId] : this._findEntity()) : null;
     const t = mtxThemeVars(mtxIsDark(this._config.theme));
+    if (!entity) {
+      const name = this._config.title || "Audac MTX";
+      this.shadowRoot.innerHTML = `
+        <style>${mtxBaseStyles(t)}
+          .treble-row { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+        </style>
+        <div class="mtx-card">
+          <div class="mtx-header">
+            <div class="mtx-header-icon">${mtxSvg('equalizer', 22)}</div>
+            <div class="mtx-header-content">
+              <div class="mtx-header-title">${mtxEscape(name)}</div>
+              <div class="mtx-header-sub">${mtxT("treble")}</div>
+            </div>
+            <div class="mtx-header-badge">0 dB</div>
+          </div>
+          <div class="treble-row">
+            <span class="mtx-val" style="min-width:36px;text-align:left;">-14</span>
+            <div class="mtx-slider-wrap">
+              <input type="range" class="mtx-slider" min="0" max="14" step="1" value="7" disabled />
+              <div class="mtx-slider-fill" style="width: 50%"></div>
+            </div>
+            <span class="mtx-val">+14</span>
+          </div>
+        </div>
+      `;
+      return;
+    }
     const treble = entity.attributes.treble;
     const trebleRaw = entity.attributes.treble_raw;
     const name = this._config.title || entity.attributes.friendly_name || entityId;

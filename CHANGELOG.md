@@ -1,5 +1,10 @@
 # Changelog
 
+## 3.9.1
+- Rebuilt all brand assets from official AUDAC vector source (`.ai`)
+- Light and dark variants with proper luminance-based alpha transparency
+- Smaller file sizes and crisp edges from high-res vector rendering
+
 ## 3.9.0
 - **Resilient state handling**: Entities keep their last known state for up to 3 consecutive poll failures before becoming unavailable. Previously, a single failed response could mark entities as unavailable.
 - Applies to both MTX and XMP44 coordinators

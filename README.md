@@ -1,4 +1,4 @@
-# Audac
+# Audac for Home Assistant
 
 [![HACS Custom](https://img.shields.io/badge/HACS-Custom-41BDF5.svg?style=flat-square)](https://github.com/hacs/integration)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
@@ -7,11 +7,11 @@
 
 [![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=FX6W9WZK&repository=ha-audac&category=integration)
 
-Home Assistant Integration zur Steuerung von **Audac** Audio-Geraeten:
-- **MTX48 / MTX88** – Audio-Matrix (Zonen-Steuerung)
-- **XMP44** – Modulares Audio-System (SourceCon Module)
+Home Assistant integration for controlling **Audac** audio devices:
+- **MTX48 / MTX88** – Audio matrix (zone control)
+- **XMP44** – Modular audio system (SourceCon modules)
 
-Kommuniziert direkt per TCP mit den Geraeten und liefert Bubble Card-inspirierte Lovelace Cards mit.
+Communicates directly via TCP with the devices and ships with Bubble Card-inspired Lovelace cards.
 
 ![Audac MTX Card Preview](https://raw.githubusercontent.com/FX6W9WZK/ha-audac/main/docs/card-preview.png)
 
@@ -19,79 +19,79 @@ Kommuniziert direkt per TCP mit den Geraeten und liefert Bubble Card-inspirierte
 
 ## Features
 
-- **Direkte TCP-Verbindung** - Kommuniziert direkt mit Audac Geraeten (Port 5001)
-- **Media Player Entities** - Jede Zone wird als eigener Media Player dargestellt
-- **Zonensteuerung** - Lautstaerke, Mute, Quellenauswahl pro Zone
-- **Zonenkopplung** - Zonen als Master/Slave koppeln (Dropdown in den Optionen). Slave-Zonen werden automatisch synchronisiert und in der Kachel ausgeblendet. Gekoppelte Zonennamen werden neben dem Link-Symbol angezeigt
-- **Bass & Hoehen** - Anzeige und Steuerung der Klangregelung (+-14 dB), ein-/ausblendbar im Card-Editor
-- **Quellenauswahl** - Uebersichtliches Grid mit allen verfuegbaren Eingaengen
-- **Automatische Erkennung** - Die Card findet alle MTX-Zonen automatisch
-- **Benutzerdefinierte Namen** - Zonen und Quellen individuell benennen (ueber Optionen)
-- **Zonen-Sichtbarkeit** - Einzelne Zonen ausblenden; Entitaeten bleiben fuer Services/Automationen erhalten
-- **Quellen-Sichtbarkeit** - Einzelne Quellen ausblenden (z.B. nicht belegte Eingaenge)
-- **Mehrsprachig** - Automatische Spracherkennung (Deutsch / Englisch) basierend auf HA-Benutzereinstellungen, Fallback: Englisch
-- **Dark / Light Mode** - Automatisch oder manuell waehlbar
-- **Akzentfarbe** - Frei waehlbare Akzentfarbe im Card-Editor
-- **Akkordeon-Navigation** - Nur eine Zone gleichzeitig geoeffnet
-- **Bubble Card Design** - Abgerundete Ecken, sanfte Gradienten, fluessige Animationen
-- **Card Editor** - Visuelle Konfiguration direkt im Lovelace-Editor
-- **Auto-Reconnect** - Exponentieller Backoff bei Verbindungsabbruch (max. 30 s)
+- **Direct TCP connection** – Communicates directly with Audac devices (port 5001)
+- **Media player entities** – Each zone is exposed as its own media player
+- **Zone control** – Volume, mute, and source selection per zone
+- **Zone coupling** – Link zones as master/slave (dropdown in options). Slave zones are automatically synchronized and hidden from the card. Linked zone names are shown next to the link icon
+- **Bass & treble** – Display and control tone settings (±14 dB), toggleable in the card editor
+- **Source selection** – Clean grid layout of all available inputs
+- **Auto-discovery** – The card automatically finds all MTX zones
+- **Custom names** – Rename zones and sources individually (via options)
+- **Zone visibility** – Hide individual zones; entities remain available for services and automations
+- **Source visibility** – Hide individual sources (e.g. unused inputs)
+- **Multi-language** – Automatic language detection (German / English) based on HA user settings, fallback: English
+- **Dark / light mode** – Automatic or manual selection
+- **Accent color** – Freely configurable accent color in the card editor
+- **Accordion navigation** – Only one zone expanded at a time
+- **Bubble Card design** – Rounded corners, smooth gradients, fluid animations
+- **Card editor** – Visual configuration directly in the Lovelace editor
+- **Auto-reconnect** – Exponential backoff on connection loss (max 30 s)
 
 ### XMP44 Features
 
-- **Automatische Modul-Erkennung** - Installierte SourceCon Module werden per GTPS-Befehl erkannt
-- **Media Player pro Slot** - Jedes installierte Modul wird als eigener Media Player dargestellt
-- **Unterstuetzte Module** - DMP40 (DAB/FM), TMP40 (FM), IMP40 (Internet Radio), MMP40 (Media Player), FMP40 (Voice File), BMP40 (Bluetooth), NMP40 (Network Player)
-- **Playback-Steuerung** - Play, Stop, Pause, Next, Previous fuer BMP40, MMP40, NMP40
-- **Song-Info** - Titel, Artist, Album, Dauer, Position fuer kompatible Module
-- **Tuner-Info** - Frequenz, Sendername, Signalstaerke, DAB/FM-Umschaltung
-- **Bluetooth** - Pairing-Status, verbundene Geraete
+- **Automatic module detection** – Installed SourceCon modules are detected via GTPS command
+- **Media player per slot** – Each installed module is exposed as its own media player
+- **Supported modules** – DMP40 (DAB/FM), TMP40 (FM), IMP40 (Internet Radio), MMP40 (Media Player), FMP40 (Voice File), BMP40 (Bluetooth), NMP40 (Network Player)
+- **Playback control** – Play, stop, pause, next, previous for BMP40, MMP40, NMP40
+- **Song info** – Title, artist, album, duration, position for compatible modules
+- **Tuner info** – Frequency, station name, signal strength, DAB/FM switching
+- **Bluetooth** – Pairing status, connected devices
 
 ---
 
-## Voraussetzungen
+## Requirements
 
-- Home Assistant 2023.9.0 oder neuer
-- [HACS](https://hacs.xyz/) (empfohlen)
-- Audac MTX48, MTX88 oder XMP44, erreichbar im Netzwerk (TCP Port 5001)
+- Home Assistant 2023.9.0 or newer
+- [HACS](https://hacs.xyz/) (recommended)
+- Audac MTX48, MTX88, or XMP44 reachable on the network (TCP port 5001)
 
 ---
 
 ## Installation
 
-### Ueber HACS (empfohlen)
+### Via HACS (recommended)
 
-1. Oeffne HACS in Home Assistant
-2. Gehe zu **Integrationen** -> drei Punkte -> **Benutzerdefinierte Repositories**
-3. Fuege `https://github.com/FX6W9WZK/ha-audac` hinzu, Kategorie **Integration**
-4. Installiere **Audac**
-5. Starte Home Assistant neu
+1. Open HACS in Home Assistant
+2. Go to **Integrations** → three dots → **Custom repositories**
+3. Add `https://github.com/FX6W9WZK/ha-audac`, category **Integration**
+4. Install **Audac**
+5. Restart Home Assistant
 
-### Manuell
+### Manual
 
-1. Lade den Inhalt des Ordners `custom_components/audac_mtx` in dein HA-Verzeichnis
-2. Starte Home Assistant neu
+1. Copy the contents of `custom_components/audac_mtx` into your HA config directory
+2. Restart Home Assistant
 
 ---
 
-## Konfiguration
+## Configuration
 
-1. **Einstellungen** -> **Geraete & Dienste** -> **Integration hinzufuegen**
-2. Suche nach **Audac**
-3. Gib IP-Adresse, Port (Standard: 5001) und Modell (MTX48 / MTX88 / XMP44) ein
+1. **Settings** → **Devices & Services** → **Add Integration**
+2. Search for **Audac**
+3. Enter IP address, port (default: 5001), and model (MTX48 / MTX88 / XMP44)
 
 ---
 
 ## Lovelace Cards
 
-Die Cards werden automatisch als Lovelace-Ressource registriert. Falls noetig, koennen sie manuell hinzugefuegt werden:
+The cards are automatically registered as Lovelace resources. If needed, they can be added manually:
 
-**Einstellungen** -> **Dashboards** -> **Ressourcen**
+**Settings** → **Dashboards** → **Resources**
 
-| Card | URL | Typ |
+| Card | URL | Type |
 |---|---|---|
-| MTX | `/audac_mtx/audac-mtx-card.js` | JavaScript-Modul |
-| XMP44 | `/audac_mtx/audac-xmp44-card.js` | JavaScript-Modul |
+| MTX | `/audac_mtx/audac-mtx-card.js` | JavaScript Module |
+| XMP44 | `/audac_mtx/audac-xmp44-card.js` | JavaScript Module |
 
 ### MTX Card
 
@@ -113,153 +113,153 @@ theme: auto
 accent_color: ""
 ```
 
-Die XMP44 Card erkennt automatisch alle konfigurierten Module und zeigt pro Slot:
-- Playback-Controls (BMP40, MMP40, NMP40)
-- Senderauswahl (IMP40 Favourites)
-- Trigger-Buttons (FMP40)
-- Sendersuche und Presets (DMP40, TMP40)
-- Bluetooth Pairing und Disconnect (BMP40)
-- Song-Info, Frequenz, Signalstaerke, Output Gain
+The XMP44 card automatically detects all configured modules and shows per slot:
+- Playback controls (BMP40, MMP40, NMP40)
+- Station selection (IMP40 favourites)
+- Trigger buttons (FMP40)
+- Station search and presets (DMP40, TMP40)
+- Bluetooth pairing and disconnect (BMP40)
+- Song info, frequency, signal strength, output gain
 
 ---
 
 ## Services
 
-| Service | Parameter | Beschreibung |
+| Service | Parameter | Description |
 |---|---|---|
-| `media_player.volume_set` | `volume_level` (0.0-1.0) | Lautstaerke setzen |
-| `media_player.volume_mute` | `is_volume_muted` | Mute setzen |
-| `media_player.select_source` | `source` | Eingang waehlen |
-| `audac_mtx.set_bass` | `bass` (0-14) | Bass setzen |
-| `audac_mtx.set_treble` | `treble` (0-14) | Treble setzen |
-| `audac_mtx.routing_up` | - | Naechsten Eingang waehlen |
-| `audac_mtx.routing_down` | - | Vorherigen Eingang waehlen |
+| `media_player.volume_set` | `volume_level` (0.0–1.0) | Set volume |
+| `media_player.volume_mute` | `is_volume_muted` | Set mute |
+| `media_player.select_source` | `source` | Select input |
+| `audac_mtx.set_bass` | `bass` (0–14) | Set bass |
+| `audac_mtx.set_treble` | `treble` (0–14) | Set treble |
+| `audac_mtx.routing_up` | – | Select next input |
+| `audac_mtx.routing_down` | – | Select previous input |
 
 ---
 
 ## Changelog
 
 ### 3.0.0
-- **XMP44 Unterstuetzung** - Audac XMP44 modulares Audio-System wird jetzt unterstuetzt
-- Neues Client-Framework: `AudacClient` Basisklasse fuer gemeinsames TCP-Protokoll
-- `MTXClient` und `XMP44Client` erben von `AudacClient`
-- Automatische Modul-Erkennung per GTPS-Befehl (DMP40, TMP40, IMP40, MMP40, FMP40, BMP40, NMP40)
-- Media Player Entity pro installiertem XMP44-Modul mit modulspezifischen Features
-- Config Flow: XMP44 als drittes Modell auswaehlbar
-- Keine Breaking Changes fuer bestehende MTX-Nutzer
+- **XMP44 support** – Audac XMP44 modular audio system is now supported
+- New client framework: `AudacClient` base class for shared TCP protocol
+- `MTXClient` and `XMP44Client` inherit from `AudacClient`
+- Automatic module detection via GTPS command (DMP40, TMP40, IMP40, MMP40, FMP40, BMP40, NMP40)
+- Media player entity per installed XMP44 module with module-specific features
+- Config flow: XMP44 selectable as third model
+- No breaking changes for existing MTX users
 
 ### 2.5.0
-- Zonenkopplung als Dropdown statt Checkboxen (eine Slave-Zone kann nur einen Master haben)
-- Default: "Keine Kopplung"
-- Volle Rueckwaertskompatibilitaet mit altem Checkbox- und Legacy-Format
+- Zone coupling as dropdown instead of checkboxes (a slave zone can only have one master)
+- Default: "No coupling"
+- Full backward compatibility with old checkbox and legacy format
 
 ### 2.4.7
-- Fix: `issue_tracker` in manifest.json hinzugefuegt (HACS Pflichtfeld)
-- Fix: `http` in `after_dependencies` hinzugefuegt (Hassfest Validierung)
-- Fix: `CONFIG_SCHEMA` hinzugefuegt (`config_entry_only_config_schema`)
+- Fix: Added `issue_tracker` to manifest.json (HACS required field)
+- Fix: Added `http` to `after_dependencies` (Hassfest validation)
+- Fix: Added `CONFIG_SCHEMA` (`config_entry_only_config_schema`)
 
 ### 2.4.6
-- Brand Assets (icon.png) fuer HACS Default Store hinzugefuegt
-- GitHub Actions Workflow fuer HACS und Hassfest Validierung
-- hacs.json bereinigt (ungueltige Felder entfernt)
-- HACS "My"-Button im README fuer einfache Installation
+- Brand assets (icon.png) for HACS Default Store
+- GitHub Actions workflow for HACS and Hassfest validation
+- Cleaned up hacs.json (removed invalid fields)
+- HACS "My" button in README for easy installation
 
 ### 2.4.5
-- Fix: Gekoppelte Zonen zeigen jetzt den konfigurierten Namen statt "Zone X"
-- Neues Attribut `zone_number` an jeder Media Player Entity
-- `mtxLinkedNames()` matched jetzt ueber `zone_number` statt Entity-ID-Pattern
+- Fix: Linked zones now show the configured name instead of "Zone X"
+- New `zone_number` attribute on each media player entity
+- `mtxLinkedNames()` now matches via `zone_number` instead of entity ID pattern
 
 ### 2.4.4
-- Fix: SyntaxError in `_renderZone` (Single Quotes in Template Literal)
-- Fix: Tippfehler in DE-Uebersetzungen (Gekoppelte, Akzentfarbe)
+- Fix: SyntaxError in `_renderZone` (single quotes in template literal)
+- Fix: Typos in DE translations
 
 ### 2.4.3
-- Gekoppelte Slave-Zonennamen werden neben dem Link-Symbol angezeigt (z.B. `Bar 🔗 Subwoofer`)
-- Neue Hilfsfunktion `mtxLinkedNames()` loest Zonennummern zu Friendly Names auf
+- Linked slave zone names shown next to the link icon (e.g. `Bar 🔗 Subwoofer`)
+- New helper function `mtxLinkedNames()` resolves zone numbers to friendly names
 
 ### 2.4.2
-- i18n Fallback auf Englisch geaendert (statt Deutsch)
+- i18n fallback changed to English (instead of German)
 
 ### 2.4.1
-- Neu: Automatische Spracherkennung (Deutsch / Englisch) fuer die gesamte Lovelace Card
-- Sprache wird aus den HA-Benutzereinstellungen gelesen (`hass.language`)
-- Alle Card-UI-Strings uebersetzt: Labels, Tooltips, Editor, Fehlermeldungen, Card-Beschreibungen
+- Automatic language detection (German / English) for the entire Lovelace card
+- Language read from HA user settings (`hass.language`)
+- All card UI strings translated: labels, tooltips, editor, error messages, card descriptions
 
 ### 2.4.0
-- README: Echtes Screenshot als Card-Preview
+- README: Real screenshot as card preview
 
 ### 2.3.9
-- Card-Editor: Bereich "Zonen" (manuelles Hinzufuegen/Entfernen) entfernt, Auto-Discover reicht aus
+- Card editor: Removed "Zones" section (manual add/remove), auto-discover is sufficient
 
 ### 2.3.8
-- README: Card-Preview mit generischen Zonennamen, absoluter Bildpfad fuer HACS
+- README: Card preview with generic zone names, absolute image path for HACS
 
 ### 2.3.7
-- Fix: README Bild korrekt angezeigt (absolute URL via raw.githubusercontent.com)
-- Fix: Version-Badge auf statisch umgestellt
+- Fix: README image displayed correctly (absolute URL via raw.githubusercontent.com)
+- Fix: Version badge switched to static
 
 ### 2.3.3
-- Bass/Hoehen-Sichtbarkeit aus Integrations-Settings entfernt (nur noch Card-Editor Toggle)
-- CARD_VERSION korrekt gebumpt fuer Browser-Cache-Busting
+- Bass/treble visibility removed from integration settings (card editor toggle only)
+- CARD_VERSION correctly bumped for browser cache busting
 
 ### 2.3.2
-- Fix: Duplizierter Code in coordinator.py entfernt – zweite `_fetch_data` (ohne Sync) ueberschrieb die erste
-- Fix: `async_shutdown` bereinigt (toter Code entfernt)
+- Fix: Removed duplicate code in coordinator.py – second `_fetch_data` (without sync) was overwriting the first
+- Fix: Cleaned up `async_shutdown` (removed dead code)
 
 ### 2.3.1
-- Fix: Zonenkopplung funktionierte nicht (Sync + Ausblenden in der Kachel)
-- Coordinator liest jetzt `zone_X_links` (Liste) statt nur `zone_X_linked_to` (int)
-- Kachel blendet Slave-Zonen korrekt aus
+- Fix: Zone coupling was not working (sync + hiding in card)
+- Coordinator now reads `zone_X_links` (list) instead of `zone_X_linked_to` (int)
+- Card correctly hides slave zones
 
 ### 2.3.0
-- Kopplung als Checkboxen (SelectSelector, Multi-Select) statt Dropdown
-- Migration vom alten auf neues Kopplungsformat
+- Coupling as checkboxes (SelectSelector, multi-select) instead of dropdown
+- Migration from old to new coupling format
 
 ### 2.2.1
-- Slave-Zonen-Sync bei jedem Coordinator-Poll (~60s)
-- Toleranz bei Lautstaerke (+-2 Einheiten), exakter Abgleich fuer Mute, Quelle, Bass, Treble
+- Slave zone sync on every coordinator poll (~60 s)
+- Volume tolerance (±2 units), exact matching for mute, source, bass, treble
 
 ### 2.2.0
-- Zonenkopplung (Master/Slave) in den Integrationsoptionen
-- Sofortige Spiegelung bei Befehlen an die Master-Zone
+- Zone coupling (master/slave) in integration options
+- Immediate mirroring when sending commands to the master zone
 
 ### 2.1.1
-- Fix: Zonen-Dropdown im Single-Card-Editor
+- Fix: Zone dropdown in single card editor
 
 ### 2.1.0
-- Bass/Treble-Sichtbarkeit im Card-Editor
+- Bass/treble visibility in card editor
 
 ### 2.0.1
-- Fix: `_async_update_zone_visibility` war nicht definiert
-- Fix: Sichtbarkeit deckt alle Entitaets-Typen ab
-- Neu: Zentrales `helpers.py`
+- Fix: `_async_update_zone_visibility` was not defined
+- Fix: Visibility covers all entity types
+- New: Central `helpers.py` module
 
 ### 2.0.0
-- Entitaeten werden immer erstellt, Sichtbarkeit ueber Entity Registry
+- Entities are always created, visibility via Entity Registry
 
 ### 1.9.2
-- Coordinator SCAN_INTERVAL 60s, Timeout-Verbesserungen
+- Coordinator SCAN_INTERVAL 60 s, timeout improvements
 
 ### 1.7.4
-- Fix: Card laedt beim ersten Render nicht (ll-rebuild)
+- Fix: Card not loading on first render (ll-rebuild)
 
 ### 1.7.3
-- Fix: `window.customCards` an Dateianfang verschoben
+- Fix: `window.customCards` moved to top of file
 
 ### 1.7.0
-- Zonennamen automatisch gekuerzt, Lautstaerke als Hintergrundfuellung
+- Zone names auto-truncated, volume as background fill
 
 ### 1.6.0
-- Flackern behoben: intelligentes DOM-Patching, Bass/Hoehen-Slider interaktiv
+- Flickering fixed: smart DOM patching, interactive bass/treble sliders
 
 ### 1.3.0
-- Services `routing_up` / `routing_down`, Protokolldokumentation
+- Services `routing_up` / `routing_down`, protocol documentation
 
 ### 1.0.0
-- Erstveroeffentlichung
+- Initial release
 
 ---
 
-## Lizenz
+## License
 
 MIT License

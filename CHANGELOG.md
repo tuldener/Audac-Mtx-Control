@@ -1,5 +1,10 @@
 # Changelog
 
+## 3.10.1
+- Fix: XMP44 slot card editor no longer destroyed by state refreshes
+- Editor renders only once (not on every `set hass()` call)
+- Card only re-renders on actual config or state changes (config snapshot diff)
+
 ## 3.10.0
 - **New: `audac-xmp44-slot-card`** — individual Lovelace card per XMP44 module
 - Supports all module types (BMP40, IMP40, FMP40, DMP40, TMP40, MMP40, NMP40)

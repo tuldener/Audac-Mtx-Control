@@ -1,4 +1,4 @@
-const XMP44_CARD_VERSION = "3.10.0";
+const XMP44_CARD_VERSION = "3.10.1";
 
 // ─── i18n ───────────────────────────────────────────────────────────
 const _xmpLang = () => {
@@ -720,7 +720,7 @@ _xmpDefine("audac-xmp44-card-editor", AudacXMP44CardEditor);
 
 // ─── Slot Card (single module) ──────────────────────────────────────
 class AudacXMP44SlotCard extends HTMLElement {
-  constructor() { super(); this.attachShadow({mode:'open'}); this._config = {}; this._hass = null; this._prevSnapshot = ''; }
+  constructor() { super(); this.attachShadow({mode:'open'}); this._config = {}; this._hass = null; this._prevSnapshot = ''; this._prevConfigSnap = ''; }
 
   static getConfigElement() { return document.createElement("audac-xmp44-slot-card-editor"); }
   static getStubConfig() { return { entity: "", title: "", theme: "auto", accent_color: "" }; }
@@ -728,7 +728,12 @@ class AudacXMP44SlotCard extends HTMLElement {
   setConfig(config) {
     if (!config) throw new Error("Invalid configuration");
     this._config = { entity: "", title: "", theme: "auto", accent_color: "", ...config };
-    this._render();
+    const configSnap = JSON.stringify(this._config);
+    if (configSnap !== this._prevConfigSnap) {
+      this._prevConfigSnap = configSnap;
+      this._prevSnapshot = '';  // force state re-check
+      this._render();
+    }
   }
   set hass(h) {
     this._hass = h;
@@ -972,9 +977,15 @@ class AudacXMP44SlotCard extends HTMLElement {
 
 // ─── Slot Card Editor ────────────────────────────────────────────────
 class AudacXMP44SlotCardEditor extends HTMLElement {
-  constructor() { super(); this.attachShadow({mode:'open'}); this._config = {}; }
-  setConfig(config) { this._config = {...config}; this._render(); }
-  set hass(h) { this._hass = h; this._render(); }
+  constructor() { super(); this.attachShadow({mode:'open'}); this._config = {}; this._rendered = false; }
+  setConfig(config) {
+    this._config = {...config};
+    if (!this._rendered && this._hass) { this._render(); this._rendered = true; }
+  }
+  set hass(h) {
+    this._hass = h;
+    if (!this._rendered) { this._render(); this._rendered = true; }
+  }
 
   _render() {
     if (!this._hass) return;

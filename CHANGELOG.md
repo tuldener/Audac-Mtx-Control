@@ -1,5 +1,10 @@
 # Changelog
 
+## 3.10.3
+- **Plausibility check**: MTX coordinator detects suspicious all-zero responses (routing=0 on all zones) and keeps previous state instead of showing "0/6"
+- **Incomplete data detection**: Keeps previous state when fewer zones than expected are returned
+- Fixed failure counter not being properly maintained when plausibility check triggers
+
 ## 3.10.2
 - Fix: `coroutine '_register_lovelace_resource' was never awaited` warning on Python 3.14
 - Replaced sync lambda with async callback for `homeassistant_started` event listener

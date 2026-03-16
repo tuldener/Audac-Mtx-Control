@@ -66,7 +66,6 @@ class XMP44Coordinator(DataUpdateCoordinator[dict[int, dict[str, Any]]]):
                 self._fetch_data(),
                 timeout=UPDATE_TIMEOUT,
             )
-            self._consecutive_update_failures = 0
             return result
         except asyncio.TimeoutError:
             self._consecutive_update_failures += 1

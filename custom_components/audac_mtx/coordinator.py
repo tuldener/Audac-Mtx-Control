@@ -84,6 +84,30 @@ class AudacMTXCoordinator(DataUpdateCoordinator[dict[int, dict[str, Any]]]):
                 links[z] = master
         return links
 
+    def _is_suspicious_response(self, new_zones: dict[int, dict[str, Any]]) -> bool:
+        """Detect suspicious all-zero responses that likely indicate a communication glitch.
+
+        Returns True if:
+        - Previous data had at least one zone with routing > 0 (active source)
+        - New data has ALL zones with routing == 0
+        This pattern is extremely unlikely to be a real user action (turning off
+        every zone simultaneously) and almost always indicates the device returned
+        garbled/zeroed data.
+        """
+        if not self.data:
+            return False
+
+        prev_has_active = any(
+            z.get("routing", 0) > 0 for z in self.data.values()
+        )
+        if not prev_has_active:
+            return False  # nothing was active before, so all-zero is plausible
+
+        new_all_zero = all(
+            z.get("routing", 0) == 0 for z in new_zones.values()
+        )
+        return new_all_zero
+
     async def _sync_slave_zones(self, zones: dict[int, dict[str, Any]]) -> None:
         """After a poll, push master values to any slave zone that has drifted.
 
@@ -150,7 +174,6 @@ class AudacMTXCoordinator(DataUpdateCoordinator[dict[int, dict[str, Any]]]):
                 self._fetch_data(),
                 timeout=UPDATE_TIMEOUT,
             )
-            self._consecutive_update_failures = 0
             return result
         except asyncio.TimeoutError:
             self._consecutive_update_failures += 1
@@ -175,6 +198,32 @@ class AudacMTXCoordinator(DataUpdateCoordinator[dict[int, dict[str, Any]]]):
                 raise UpdateFailed("No zone data received from MTX after %d attempts" % MAX_CONSECUTIVE_FAILURES)
             if not zones:
                 raise UpdateFailed("No zone data received from MTX")
+
+            # Check for incomplete response (fewer zones than expected)
+            if self.data and len(zones) < self._zones_count and len(self.data) == self._zones_count:
+                self._consecutive_update_failures += 1
+                _LOGGER.warning(
+                    "MTX returned incomplete data: %d/%d zones (failure %d/%d), keeping previous state",
+                    len(zones), self._zones_count,
+                    self._consecutive_update_failures, MAX_CONSECUTIVE_FAILURES,
+                )
+                if self._consecutive_update_failures < MAX_CONSECUTIVE_FAILURES:
+                    return self.data
+
+            # Plausibility check: if we had active zones before, but now ALL zones
+            # suddenly report routing=0, this is likely a communication glitch
+            # (the device returned zeroed data). Keep previous state.
+            if self.data and self._is_suspicious_response(zones):
+                self._consecutive_update_failures += 1
+                _LOGGER.warning(
+                    "MTX returned suspicious all-zero data (failure %d/%d), keeping previous state",
+                    self._consecutive_update_failures, MAX_CONSECUTIVE_FAILURES,
+                )
+                if self._consecutive_update_failures < MAX_CONSECUTIVE_FAILURES:
+                    return self.data
+                # After MAX failures, accept the data as real (maybe user actually turned everything off)
+                _LOGGER.info("MTX all-zero data persisted for %d polls, accepting as real state", MAX_CONSECUTIVE_FAILURES)
+
             for zone_id, zone_data in zones.items():
                 _LOGGER.debug(
                     "Zone %d: volume=%s routing=%s mute=%s bass=%s treble=%s",

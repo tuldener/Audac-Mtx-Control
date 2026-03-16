@@ -1,5 +1,11 @@
 # Changelog
 
+## 3.11.0
+- **Faster MTX polling**: Bass/treble values are now cached and only refreshed every 5th poll
+- Normal polls: 3 TCP commands (~2-3s) instead of 19 (~15-20s)
+- Eliminates HA warning "Update is taking over 10 seconds" for 80% of polls
+- Bass/treble cache is updated immediately when set via HA (no wait for next refresh)
+
 ## 3.10.3
 - **Plausibility check**: MTX coordinator detects suspicious all-zero responses (routing=0 on all zones) and keeps previous state instead of showing "0/6"
 - **Incomplete data detection**: Keeps previous state when fewer zones than expected are returned

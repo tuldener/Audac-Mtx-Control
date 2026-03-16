@@ -27,9 +27,15 @@ class MTXClient(AudacClient):
 
     DEVICE_ADDRESS = "X001"
 
+    # Bass/treble rarely change — only query them every N polls to reduce
+    # the total number of TCP commands per update cycle.
+    BASS_TREBLE_REFRESH_INTERVAL = 5
+
     def __init__(self, host: str, port: int = DEFAULT_PORT, source: str = DEFAULT_SOURCE) -> None:
         super().__init__(host, port, source)
         self._bulk_supported: bool | None = None
+        self._bass_treble_cache: dict[int, dict[str, int]] = {}
+        self._poll_count: int = 0
 
     async def connect(self) -> None:
         await super().connect()
@@ -103,35 +109,52 @@ class MTXClient(AudacClient):
             return await self._get_all_zones_individual(zones_count)
 
         self._bulk_supported = True
+        self._poll_count += 1
+
+        # Determine if we need a full bass/treble refresh this cycle
+        need_bass_treble = (
+            not self._bass_treble_cache
+            or self._poll_count % self.BASS_TREBLE_REFRESH_INTERVAL == 0
+        )
+
         for zone in range(1, zones_count + 1):
+            cached_bt = self._bass_treble_cache.get(zone, {})
             zones[zone] = {
                 "volume": volumes.get(zone, 70),
                 "volume_db": -volumes.get(zone, 70),
                 "routing": routings.get(zone, 0),
                 "source_name": INPUT_NAMES.get(routings.get(zone, 0), "Off"),
                 "mute": mutes.get(zone, 0) != 0,
-                "bass": 7,
-                "bass_db": 0,
-                "treble": 7,
-                "treble_db": 0,
+                "bass": cached_bt.get("bass", 7),
+                "bass_db": BASS_TREBLE_MAP.get(cached_bt.get("bass", 7), 0),
+                "treble": cached_bt.get("treble", 7),
+                "treble_db": BASS_TREBLE_MAP.get(cached_bt.get("treble", 7), 0),
             }
 
-        for zone in range(1, zones_count + 1):
-            try:
-                bass = await self._get_single_value(f"GB0{zone}")
-                if bass is not None:
-                    zones[zone]["bass"] = bass
-                    zones[zone]["bass_db"] = BASS_TREBLE_MAP.get(bass, 0)
-                await asyncio.sleep(INTER_COMMAND_DELAY)
-                treble = await self._get_single_value(f"GT0{zone}")
-                if treble is not None:
-                    zones[zone]["treble"] = treble
-                    zones[zone]["treble_db"] = BASS_TREBLE_MAP.get(treble, 0)
-                await asyncio.sleep(INTER_COMMAND_DELAY)
-            except ConnectionError:
-                raise
-            except Exception as err:
-                _LOGGER.warning("Bass/treble error zone %d: %s", zone, err)
+        if need_bass_treble:
+            _LOGGER.debug("Refreshing bass/treble for all %d zones (poll #%d)", zones_count, self._poll_count)
+            for zone in range(1, zones_count + 1):
+                try:
+                    bass = await self._get_single_value(f"GB0{zone}")
+                    if bass is not None:
+                        zones[zone]["bass"] = bass
+                        zones[zone]["bass_db"] = BASS_TREBLE_MAP.get(bass, 0)
+                    await asyncio.sleep(INTER_COMMAND_DELAY)
+                    treble = await self._get_single_value(f"GT0{zone}")
+                    if treble is not None:
+                        zones[zone]["treble"] = treble
+                        zones[zone]["treble_db"] = BASS_TREBLE_MAP.get(treble, 0)
+                    await asyncio.sleep(INTER_COMMAND_DELAY)
+                except ConnectionError:
+                    raise
+                except Exception as err:
+                    _LOGGER.warning("Bass/treble error zone %d: %s", zone, err)
+            # Update cache
+            for zone in range(1, zones_count + 1):
+                self._bass_treble_cache[zone] = {
+                    "bass": zones[zone]["bass"],
+                    "treble": zones[zone]["treble"],
+                }
 
         return zones
 
@@ -197,11 +220,17 @@ class MTXClient(AudacClient):
     async def set_bass(self, zone: int, bass: int) -> bool:
         bass = max(0, min(14, bass))
         resp = await self._send_and_receive(f"SB0{zone}", str(bass))
+        if self._is_success(resp):
+            if zone in self._bass_treble_cache:
+                self._bass_treble_cache[zone]["bass"] = bass
         return self._is_success(resp)
 
     async def set_treble(self, zone: int, treble: int) -> bool:
         treble = max(0, min(14, treble))
         resp = await self._send_and_receive(f"ST0{zone}", str(treble))
+        if self._is_success(resp):
+            if zone in self._bass_treble_cache:
+                self._bass_treble_cache[zone]["treble"] = treble
         return self._is_success(resp)
 
     async def set_mute(self, zone: int, mute: bool) -> bool:

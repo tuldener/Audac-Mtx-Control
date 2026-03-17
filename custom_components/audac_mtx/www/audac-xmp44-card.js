@@ -1,4 +1,4 @@
-const XMP44_CARD_VERSION = "3.14.1";
+const XMP44_CARD_VERSION = "3.14.2";
 
 // ─── i18n ───────────────────────────────────────────────────────────
 const _xmpLang = () => {
@@ -223,7 +223,7 @@ class AudacXMP44Card extends HTMLElement {
           background: ${t.accentLight}; color: ${t.accent};
           font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 12px; white-space: nowrap;
         }
-        .slots-container { display: flex; flex-direction: column; gap: 8px; }
+        .slots-container { display: flex; flex-direction: column; gap: 6px; }
         .slot-card {
           background: ${t.isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)"}; border-radius: 25px; overflow: hidden;
           transition: all 0.3s cubic-bezier(0.25,0.1,0.25,1); border: 1px solid transparent;
@@ -233,8 +233,8 @@ class AudacXMP44Card extends HTMLElement {
           border-color: ${t.isDark ? 'rgba(124,107,240,0.2)' : 'rgba(124,107,240,0.15)'};
           background: ${t.isDark ? 'rgba(45,48,58,0.9)' : 'rgba(240,242,248,0.95)'};
         }
-        .slot-main { position: relative; cursor: pointer; padding: 10px 12px; overflow: hidden; }
-        .slot-content { position: relative; display: flex; align-items: center; gap: 12px; z-index: 1; }
+        .slot-main { position: relative; cursor: pointer; padding: 8px 12px; overflow: hidden; }
+        .slot-content { position: relative; display: flex; align-items: center; gap: 10px; z-index: 1; }
         .slot-icon {
           width: 36px; height: 36px; border-radius: 50%;
           background: ${t.isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)'};
@@ -243,7 +243,7 @@ class AudacXMP44Card extends HTMLElement {
         }
         .slot-icon.active { background: linear-gradient(135deg, ${t.accent}, #a78bfa); color: white; }
         .slot-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
-        .slot-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .slot-name { font-size: 13px; font-weight: 600; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .slot-detail { font-size: 11px; color: ${t.textSec}; font-weight: 500; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .slot-badge {
           font-size: 11px; font-weight: 600; color: ${t.accent};
@@ -274,7 +274,7 @@ class AudacXMP44Card extends HTMLElement {
         .xmp-song-info {
           text-align: center; padding: 4px 0 8px;
         }
-        .xmp-song-title { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .xmp-song-title { font-size: 13px; font-weight: 600; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .xmp-song-artist { font-size: 11px; color: ${t.textSec}; font-weight: 500; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .xmp-info-row {
           display: flex; align-items: center; justify-content: space-between;
@@ -891,7 +891,7 @@ class AudacXMP44SlotCard extends HTMLElement {
       }
       .xmp-play-btn.primary:hover { opacity: 0.9; }
       .xmp-song-info { text-align: center; padding: 4px 0 8px; }
-      .xmp-song-title { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .xmp-song-title { font-size: 13px; font-weight: 600; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
       .xmp-song-artist { font-size: 11px; color: ${t.textSec}; font-weight: 500; }
       .xmp-info-row {
         display: flex; align-items: center; justify-content: space-between;

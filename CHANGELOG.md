@@ -1,5 +1,12 @@
 # Changelog
 
+## 3.14.2
+- Compact zone/slot rows further to match HA standard container padding
+- Row padding: 10px 12px → 8px 12px (row height ~52px, down from ~58px)
+- Content gap: 12px → 10px
+- Container gap between rows: 8px → 6px
+- Name line-height: default → 1.3
+
 ## 3.14.1
 - Compact zone/slot row sizing to match HA standard row height (~56px)
 - Zone/slot name: 14px → 13px (matches Bubble Card)

@@ -1,4 +1,4 @@
-const CARD_VERSION = "3.14.1";
+const CARD_VERSION = "3.14.2";
 
 // ─── i18n ───────────────────────────────────────────────────────────
 const _mtxLang = () => {
@@ -515,7 +515,7 @@ class AudacMTXCard extends HTMLElement {
     this.shadowRoot.innerHTML = `
       <style>
         ${mtxBaseStyles(t)}
-        .zones-container { display: flex; flex-direction: column; gap: 8px; }
+        .zones-container { display: flex; flex-direction: column; gap: 6px; }
         .zone-card {
           background: ${t.isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)"}; border-radius: 25px; overflow: hidden;
           transition: all 0.3s cubic-bezier(0.25,0.1,0.25,1); border: 1px solid transparent;
@@ -527,7 +527,7 @@ class AudacMTXCard extends HTMLElement {
         }
         .zone-card.muted .zone-vol-bg { opacity: 0 !important; }
         .zone-card.off { opacity: 0.5; }
-        .zone-main { position: relative; cursor: pointer; padding: 10px 12px; overflow: hidden; }
+        .zone-main { position: relative; cursor: pointer; padding: 8px 12px; overflow: hidden; }
         .zone-vol-bg {
           position: absolute; top: 0; left: 0; height: 100%;
           background: linear-gradient(90deg,
@@ -536,7 +536,7 @@ class AudacMTXCard extends HTMLElement {
             transparent 100%);
           transition: width 0.5s cubic-bezier(0.25,0.1,0.25,1); pointer-events: none;
         }
-        .zone-content { position: relative; display: flex; align-items: center; gap: 12px; z-index: 1; }
+        .zone-content { position: relative; display: flex; align-items: center; gap: 10px; z-index: 1; }
         .zone-icon {
           width: 36px; height: 36px; border-radius: 50%;
           background: ${t.isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)'};
@@ -545,7 +545,7 @@ class AudacMTXCard extends HTMLElement {
         }
         .zone-icon.active { background: linear-gradient(135deg, ${t.accent}, ${t.accentSecond}); color: white; }
         .zone-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
-        .zone-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .zone-name { font-size: 13px; font-weight: 600; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .zone-detail { font-size: 11px; color: ${t.textSec}; font-weight: 500; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .zone-badge {
           font-size: 13px; font-weight: 700; color: ${t.accent};
@@ -560,7 +560,7 @@ class AudacMTXCard extends HTMLElement {
           animation: slideDown 0.3s cubic-bezier(0.25,0.1,0.25,1);
         }
         @keyframes slideDown { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
-        .ctrl-section { display: flex; flex-direction: column; gap: 8px; }
+        .ctrl-section { display: flex; flex-direction: column; gap: 6px; }
         .vol-row { display: flex; align-items: center; gap: 10px; }
         .tone-section { flex-direction: row; gap: 12px; }
         .tone-ctrl {
@@ -1260,7 +1260,7 @@ class AudacMTXMoreInfo extends HTMLElement {
         ${mtxBaseStyles(t)}
         :host { display: block; padding: 0; }
         .mtx-card { border: none; border-radius: 0; backdrop-filter: none; }
-        .zones-container { display: flex; flex-direction: column; gap: 8px; }
+        .zones-container { display: flex; flex-direction: column; gap: 6px; }
         .zone-card {
           background: ${t.isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)"}; border-radius: 25px; overflow: hidden;
           transition: all 0.3s cubic-bezier(0.25,0.1,0.25,1); border: 1px solid transparent;
@@ -1273,7 +1273,7 @@ class AudacMTXMoreInfo extends HTMLElement {
         .zone-card.muted .zone-vol-bg { opacity: 0 !important; }
         .zone-card.off { opacity: 0.5; }
         .zone-card.current { border-color: ${t.accent}; }
-        .zone-main { position: relative; cursor: pointer; padding: 10px 12px; overflow: hidden; }
+        .zone-main { position: relative; cursor: pointer; padding: 8px 12px; overflow: hidden; }
         .zone-vol-bg {
           position: absolute; top: 0; left: 0; height: 100%;
           background: linear-gradient(90deg,
@@ -1282,7 +1282,7 @@ class AudacMTXMoreInfo extends HTMLElement {
             transparent 100%);
           transition: width 0.5s cubic-bezier(0.25,0.1,0.25,1); pointer-events: none;
         }
-        .zone-content { position: relative; display: flex; align-items: center; gap: 12px; z-index: 1; }
+        .zone-content { position: relative; display: flex; align-items: center; gap: 10px; z-index: 1; }
         .zone-icon {
           width: 36px; height: 36px; border-radius: 50%;
           background: ${t.isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)'};
@@ -1291,7 +1291,7 @@ class AudacMTXMoreInfo extends HTMLElement {
         }
         .zone-icon.active { background: linear-gradient(135deg, ${t.accent}, ${t.accentSecond}); color: white; }
         .zone-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
-        .zone-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .zone-name { font-size: 13px; font-weight: 600; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .zone-detail { font-size: 11px; color: ${t.textSec}; font-weight: 500; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .zone-badge {
           font-size: 13px; font-weight: 700; color: ${t.accent};
@@ -1306,7 +1306,7 @@ class AudacMTXMoreInfo extends HTMLElement {
           animation: slideDown 0.3s cubic-bezier(0.25,0.1,0.25,1);
         }
         @keyframes slideDown { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
-        .ctrl-section { display: flex; flex-direction: column; gap: 8px; }
+        .ctrl-section { display: flex; flex-direction: column; gap: 6px; }
         .vol-row { display: flex; align-items: center; gap: 10px; }
         .tone-section { flex-direction: row; gap: 12px; }
         .tone-ctrl {

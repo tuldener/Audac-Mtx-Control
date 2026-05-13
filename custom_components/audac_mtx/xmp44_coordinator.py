@@ -40,6 +40,7 @@ class XMP44Coordinator(DataUpdateCoordinator[dict[int, dict[str, Any]]]):
             _LOGGER,
             name=f"{DOMAIN}_xmp44",
             update_interval=SCAN_INTERVAL,
+            config_entry=entry,
         )
         self.entry = entry
         self.client = XMP44Client(

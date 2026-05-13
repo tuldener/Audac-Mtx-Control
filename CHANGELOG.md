@@ -1,5 +1,9 @@
 # Changelog
 
+## 3.15.3
+- **Fix: HA 2025.12+ compatibility** — `AudacMTXOptionsFlow.__init__` removed (config_entry now comes from base class, explicit assignment is a hard error since HA 2025.12)
+- **Fix: DataUpdateCoordinator deprecation** — Added `config_entry=entry` parameter in both MTX and XMP44 coordinators (deprecation since HA 2024.12, hard break in HA 2026.8)
+
 ## 3.15.2
 - **Fix: all buttons always available** — buttons are fire-and-forget commands, they don't depend on coordinator state
 - New `AudacButtonBase` class with `available = True` — all 13 button classes inherit from it

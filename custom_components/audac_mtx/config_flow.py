@@ -91,12 +91,10 @@ class AudacMTXConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     @staticmethod
     def async_get_options_flow(config_entry):
-        return AudacMTXOptionsFlow(config_entry)
+        return AudacMTXOptionsFlow()
 
 
 class AudacMTXOptionsFlow(config_entries.OptionsFlow):
-    def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
-        self._config_entry = config_entry
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
@@ -122,14 +120,14 @@ class AudacMTXOptionsFlow(config_entries.OptionsFlow):
         self,
         errors: dict[str, str] | None = None,
     ) -> FlowResult:
-        model = self._config_entry.data.get(CONF_MODEL, MODEL_MTX88)
-        current_options = self._config_entry.options
+        model = self.config_entry.data.get(CONF_MODEL, MODEL_MTX88)
+        current_options = self.config_entry.options
 
         schema_dict = {}
 
         if is_xmp_model(model):
             # XMP44: Module selection, slot names and visibility
-            slots_count = self._config_entry.data.get("slots", MODEL_SLOTS.get(model, 4))
+            slots_count = self.config_entry.data.get("slots", MODEL_SLOTS.get(model, 4))
 
             module_options = [
                 selector.SelectOptionDict(value="0", label="Kein Modul"),

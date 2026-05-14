@@ -1,6 +1,6 @@
 # Audac for Home Assistant
 
-[![HACS Custom](https://img.shields.io/badge/HACS-Custom-41BDF5.svg?style=flat-square)](https://github.com/hacs/integration)
+[![HACS Default](https://img.shields.io/badge/HACS-Default-41BDF5.svg?style=flat-square)](https://github.com/hacs/integration)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
 [![Version](https://img.shields.io/badge/Version-3.15.2-green.svg?style=flat-square)](https://github.com/FX6W9WZK/ha-audac/releases/latest)
 [![Built with Claude AI](https://img.shields.io/badge/Built%20with-Claude%20AI-c4956b.svg?style=flat-square&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNTYgMjU2Ij48cGF0aCBkPSJNMTcyLjEgNjUuOEwxMDQuMiAxOTAuMiA4My44IDE4My4xbDY3LjktMTI0LjQgMjAuNCAxMi4xek0xNTYuNSAxNzIuMWwtNTEuOC0yMi42IDguNS0xOS41IDUxLjggMjIuNi04LjUgMTkuNXoiIGZpbGw9IiNjNDk1NmIiLz48L3N2Zz4=)](https://www.anthropic.com/claude)
@@ -62,10 +62,9 @@ Communicates directly via TCP with the devices and ships with Bubble Card-inspir
 ### Via HACS (recommended)
 
 1. Open HACS in Home Assistant
-2. Go to **Integrations** → three dots → **Custom repositories**
-3. Add `https://github.com/FX6W9WZK/ha-audac`, category **Integration**
-4. Install **Audac**
-5. Restart Home Assistant
+2. Search for **Audac** in Integrations
+3. Install **Audac**
+4. Restart Home Assistant
 
 ### Manual
 

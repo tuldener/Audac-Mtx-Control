@@ -22,7 +22,7 @@ async def async_setup_entry(
     entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    coordinator: AudacMTXCoordinator = hass.data[DOMAIN][entry.entry_id]
+    coordinator: AudacMTXCoordinator = entry.runtime_data
     model = entry.data.get(CONF_MODEL, MODEL_MTX88)
     zones_count = entry.data.get("zones", MODEL_ZONES.get(model, 8))
 

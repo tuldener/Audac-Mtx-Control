@@ -72,7 +72,7 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     model = entry.data.get(CONF_MODEL, MODEL_MTX88)
-    coordinator = hass.data[DOMAIN][entry.entry_id]
+    coordinator = entry.runtime_data
 
     if is_xmp_model(model):
         await _setup_xmp44_buttons(hass, entry, coordinator, async_add_entities)
